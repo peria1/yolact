@@ -81,7 +81,12 @@ parser.add_argument('--no_autoscale', dest='autoscale', action='store_false',
 
 parser.set_defaults(keep_latest=False, log=True, log_gpu=False, interrupt=True, autoscale=True)
 args = parser.parse_args()
-
+#
+# Note that args.config is the name of a config *object*, not the name of a file. I 
+#   think that the object needs to be defined in config.py.  He does set_cfg here, 
+#   but where does information from cfg get used? Ok, I guess cfg comes in from the 
+#   star import of the data folder. How does *that* work? Does every python file get imported? 
+#
 if args.config is not None:
     set_cfg(args.config)
 
@@ -129,7 +134,7 @@ if torch.cuda.is_available():
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
-class NetLoss(nn.Module):
+class NetWithLoss(nn.Module):
     """
     A wrapper for running the network and computing the loss
     This is so we can more efficiently use DataParallel.
@@ -225,9 +230,9 @@ def train():
             print('Error: Batch allocation (%s) does not sum to batch size (%s).' % (args.batch_alloc, args.batch_size))
             exit(-1)
 
-    net = CustomDataParallel(NetLoss(net, criterion))
+    net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
     if args.cuda:
-        net = net.cuda()
+        net_cdp = net_cdp.cuda()
     
     # Initialize everything
     if not cfg.freeze_bn: yolact_net.freeze_bn() # Freeze bn so we don't kill our means
@@ -303,8 +308,8 @@ def train():
                 # Zero the grad to get ready to compute gradients
                 optimizer.zero_grad()
 
-                # Forward Pass + Compute loss at the same time (see CustomDataParallel and NetLoss)
-                losses = net(datum)
+                # Forward Pass + Compute loss at the same time (see CustomDataParallel and NetWithLoss)
+                losses = net_cdp(datum)
                 
                 losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
                 loss = sum([losses[k] for k in losses])

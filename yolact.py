@@ -680,8 +680,8 @@ class Yolact(nn.Module):
 
 # Some testing code
 if __name__ == '__main__':
-    from utils.functions import init_console
-    init_console()
+#    from utils.functions import init_console
+#    init_console()
 
     # Use the first argument to set the config if you want
     import sys
@@ -691,13 +691,14 @@ if __name__ == '__main__':
 
     net = Yolact()
     net.train()
+    print('Backbone path is',cfg.backbone.path)
     net.init_weights(backbone_path='weights/' + cfg.backbone.path)
 
     # GPU
     net = net.cuda()
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-    x = torch.zeros((1, 3, cfg.max_size, cfg.max_size))
+    x = torch.ones((1, 3, cfg.max_size, cfg.max_size))
     y = net(x)
 
     for p in net.prediction_layers:
@@ -705,20 +706,21 @@ if __name__ == '__main__':
 
     print()
     for k, a in y.items():
-        print(k + ': ', a.size(), torch.sum(a))
-    exit()
+        print(k + ': ', a.size(), torch.sum(a).item())
+
+#    exit()
     
-    net(x)
+#    net(x)
     # timer.disable('pass2')
-    avg = MovingAverage()
-    try:
-        while True:
-            timer.reset()
-            with timer.env('everything else'):
-                net(x)
-            avg.add(timer.total_time())
-            print('\033[2J') # Moves console cursor to 0,0
-            timer.print_stats()
-            print('Avg fps: %.2f\tAvg ms: %.2f         ' % (1/avg.get_avg(), avg.get_avg()*1000))
-    except KeyboardInterrupt:
-        pass
+#    avg = MovingAverage()
+#    try:
+#        while True:
+#            timer.reset()
+#            with timer.env('everything else'):
+#                net(x)
+#            avg.add(timer.total_time())
+#            print('\033[2J') # Moves console cursor to 0,0
+#            timer.print_stats()
+#            print('Avg fps: %.2f\tAvg ms: %.2f         ' % (1/avg.get_avg(), avg.get_avg()*1000))
+#    except KeyboardInterrupt:
+#        pass

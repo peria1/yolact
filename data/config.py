@@ -2,6 +2,8 @@ from backbone import ResNetBackbone, VGGBackbone, ResNetBackboneGN, DarkNetBackb
 from math import sqrt
 import torch
 
+gtfoh = 1.23
+
 # for making bounding boxes pretty
 COLORS = ((244,  67,  54),
           (233,  30,  99),
