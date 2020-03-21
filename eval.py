@@ -594,7 +594,9 @@ def badhash(x):
 
 def evalimage(net:Yolact, path:str, save_path:str=None):
     frame = torch.from_numpy(cv2.imread(path)).cuda().float()
+    print('frame size is', frame.size())
     batch = FastBaseTransform()(frame.unsqueeze(0))
+    print('Batch size is',batch.size())
     preds = net(batch)
 
     img_numpy = prep_display(preds, frame, None, None, undo_transform=False)
@@ -875,10 +877,12 @@ def evaluate(net:Yolact, dataset, train_mode=False):
     # TODO Currently we do not support Fast Mask Re-scroing in evalimage, evalimages, and evalvideo
     if args.image is not None:
         if ':' in args.image:
+            print('I am indeed taking this path in evaluate()...')
             inp, out = args.image.split(':')
             evalimage(net, inp, out)
         else:
             evalimage(net, args.image)
+        print('Returning and therefore ignoring most of evaluate()...')
         return
     elif args.images is not None:
         inp, out = args.images.split(':')
@@ -1102,6 +1106,11 @@ if __name__ == '__main__':
         if args.cuda:
             net = net.cuda()
 
+
+        print(type(dataset)) # When evaluating with a single image, dataset is None. 
+        print(dataset)
+        print(dir(dataset))
+        
         evaluate(net, dataset)
 
 
