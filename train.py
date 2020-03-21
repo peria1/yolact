@@ -273,6 +273,8 @@ def train():
                 continue
             
             for datum in data_loader:
+                print('Type of datum is',type(datum))
+                
                 # Stop if we've reached an epoch if we're resuming from start_iter
                 if iteration == (epoch+1)*epoch_size:
                     break
@@ -412,8 +414,10 @@ def prepare_data(datum, devices:list=None, allocation:list=None):
         images, (targets, masks, num_crowds) = datum
 
         cur_idx = 0
+        print(len(images))
         for device, alloc in zip(devices, allocation):
-            for _ in range(alloc):
+            for _ in range(len(images)):
+                print('cur_idx is ',cur_idx)
                 images[cur_idx]  = gradinator(images[cur_idx].to(device))
                 targets[cur_idx] = gradinator(targets[cur_idx].to(device))
                 masks[cur_idx]   = gradinator(masks[cur_idx].to(device))

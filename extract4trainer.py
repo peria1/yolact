@@ -11,13 +11,15 @@ from train import  NetWithLoss, CustomDataParallel, MultiBoxLoss, prepare_data
 #   up information from config.py. 
 #
 import data as D  
-from utils.augmentations import SSDAugmentation #, BaseTransform
 
+from utils.augmentations import SSDAugmentation #, FastBaseTransform, BaseTransform
 import torch
 from yolact import Yolact
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import matplotlib
-import copy
+
+
+#import copy
 
 #
 # If I don't wrap this in if _name__ == '__main__', it will usually
@@ -26,6 +28,7 @@ import copy
 #   traceback, and if that doesn't make you giggle, go take a break. 
 #
 if __name__ == '__main__':
+    backend_I_want = 'Qt5Agg'
     #
     # Define a dataset and a DataLoader, and get one datum. 
     #
@@ -36,22 +39,22 @@ if __name__ == '__main__':
     print('After data set def, backend is',matplotlib.get_backend())
 
 #
-# Defining datset somehow changes matplotlib backend, I swear to God, so I have
-#   to reset it here. 
+# Defining datset somehow sometiems changes matplotlib backend to Agg, I 
+#   swear to God, so I reset it here if ncecessary.  
 #
-    matplotlib.use('Qt5Agg')    
+    if matplotlib.get_backend() != backend_I_want:
+        print('WTF? Resetting matplotlib backend...')
+        matplotlib.use(backend_I_want)    
     
     batch_size = 4
     num_workers = 1
-    
-    
     
     data_loader = torch.utils.data.DataLoader(dataset, batch_size,
                                   num_workers=num_workers,
                                   shuffle=True, 
                                   collate_fn=D.detection_collate,
                                   pin_memory=True)
-     
+    
     for datum in data_loader:
         break
     
@@ -65,10 +68,6 @@ if __name__ == '__main__':
     net = Yolact()
     net.train()
     net.init_weights(backbone_path='weights/' + D.cfg.backbone.path)
-    net_plain = net
-    net_plain.cuda()
-    output_from_one = net_plain(datum[0][0].reshape((1,3,550,550)).cuda())
-    
 
     criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
                              pos_threshold=D.cfg.positive_iou_threshold,
@@ -78,9 +77,12 @@ if __name__ == '__main__':
     
     net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
     net_cdp.cuda()
-#
-# Following still barfs...don't know why yet. 
-#    
+
     losses = net_cdp(datum)
+    losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
+    loss = sum([losses[k] for k in losses])
+    
+    print('Whoa! We made it! Loss is',loss)
+
 
 
