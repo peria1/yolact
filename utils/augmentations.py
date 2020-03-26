@@ -1,10 +1,12 @@
 import torch
-from torchvision import transforms
+#from torchvision import transforms
 import cv2
 import numpy as np
 import types
 from numpy import random
 from math import sqrt
+
+from scipy.interpolate import LSQBivariateSpline
 
 from data import cfg, MEANS, STD
 
@@ -439,6 +441,53 @@ class Expand(object):
 
         return image, masks, boxes, labels
 
+class Back_Away(object): # not implemented yet!
+    #  I want to zoom out some of our images so that objects appear smaller. So 
+    #   far I just copied from Expand to have a template. WJP
+    def __init__(self):
+        self.spline = LSQBivariateSpline
+
+    def __call__(self, image, masks, boxes, labels):
+        if random.randint(2):
+            return image, masks, boxes, labels
+
+
+#        fill = self.spline(x,y,z,tx,ty)
+
+        height, width, depth = image.shape
+        ratio = random.uniform(0.33,1)
+        
+        xx, yy = np.meshgrid(np.arange(width), np.arange(height))
+
+        
+        for m in masks:
+            x0, y0 = np.mean(xx[m>0]), np.mean(yy[m>0])
+            print(x0,y0)
+            
+#        left = random.uniform(0, width*ratio - width)
+#        top = random.uniform(0, height*ratio - height)
+#
+#        expand_image = np.zeros(
+#            (int(height*ratio), int(width*ratio), depth),
+#            dtype=image.dtype)
+#        expand_image[:, :, :] = self.mean
+#        expand_image[int(top):int(top + height),
+#                     int(left):int(left + width)] = image
+#        image = expand_image
+#
+#        expand_masks = np.zeros(
+#            (masks.shape[0], int(height*ratio), int(width*ratio)),
+#            dtype=masks.dtype)
+#        expand_masks[:,int(top):int(top + height),
+#                       int(left):int(left + width)] = masks
+#        masks = expand_masks
+#
+#        boxes = boxes.copy()
+#        boxes[:, :2] += (int(left), int(top))
+#        boxes[:, 2:] += (int(left), int(top))
+#
+        return image, masks, boxes, labels
+
 
 class RandomMirror(object):
     def __call__(self, image, masks, boxes, labels):
@@ -671,6 +720,7 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
+            Back_Away(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),

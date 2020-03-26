@@ -15,9 +15,36 @@ import data as D
 from utils.augmentations import SSDAugmentation #, FastBaseTransform, BaseTransform
 import torch
 from yolact import Yolact
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import matplotlib
+import numpy as np
 
+def myshow(img):
+    if img.size()[0] != 3:
+        maskshow(img)
+        
+    ishow = img.cpu().numpy().transpose((1,2,0))
+    ishow = (ishow-np.min(ishow))/(np.max(ishow) - np.min(ishow)).astype(np.int)
+    plt.imshow(ishow)
+
+def maskshow(img,pick=None):
+    isize = img.size()
+    if not pick:
+        nmask = isize[0]
+        pick = list(range(nmask))
+    else:
+        if type(pick) is not list:
+            pick = list(pick)
+
+    mask = np.zeros(isize[1:])
+    img = img.cpu().detach().numpy()
+    for i in pick:
+        mask += img[i,:,:]
+    
+    plt.imshow(mask)
+    rtn_size = list(mask.shape)
+    rtn_size.append(1)
+    return mask.reshape(rtn_size);
 
 #import copy
 
@@ -55,9 +82,23 @@ if __name__ == '__main__':
                                   collate_fn=D.detection_collate,
                                   pin_memory=True)
     
-    for datum in data_loader:
-        break
+    data_loader_iterator = iter(data_loader)
     
+    datum = next(data_loader_iterator)    
+    
+    #  datum itself is a list of 2 lists. The first has length batch_size and 
+    #   contains images, the second has length 3 and contains targets, masks, 
+    #   and num_crowds. 
+    #
+    #  images are 3x550x550 tensors, in a list of length batch_size.
+    #
+    #  targets are nx5 tensors, what is n?  in a list of length batch_size.
+    #
+    #  masks are tensors, size kx550x550, list of length batch_size, where k is
+    #   the number of objects in the corresponding image. 
+    #
+    #  crowds are numpy.int32, in a list of length batch_size.
+    #  
     
     images, (targets, masks, num_crowds) = datum
     
