@@ -5,6 +5,7 @@ import numpy as np
 import types
 from numpy import random
 from math import sqrt
+import traceback
 
 from scipy.interpolate import LSQBivariateSpline
 
@@ -448,6 +449,7 @@ class Back_Away(object): # not implemented yet!
         self.spline = LSQBivariateSpline
 
     def __call__(self, image, masks, boxes, labels):
+        print('yeah baby, augmenting...')
         if random.randint(2):
             return image, masks, boxes, labels
 
@@ -460,9 +462,28 @@ class Back_Away(object): # not implemented yet!
         xx, yy = np.meshgrid(np.arange(width), np.arange(height))
 
         
-        for m in masks:
-            x0, y0 = np.mean(xx[m>0]), np.mean(yy[m>0])
-            print(x0,y0)
+        r = ratio
+#        for m in masks:
+#            image = image * (1-m).reshape((height, width, 1))
+#            
+#            mgtz = m > 0
+#            
+#            x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
+#            
+#            F = lambda r: np.asmatrix([[  r,    0,  x0*(1-r)],\
+#                                       [  0,    r,  y0*(1-r)],\
+#                                       [  0,    0,      1   ]])
+#            
+#            xy_p = np.matmul(F(r), \
+#                    np.concatenate(\
+#                        (np.unique(np.ravel(xx[mgtz]).reshape((1,-1))),\
+#                         np.unique(np.ravel(yy[mgtz]).reshape((1,-1)))), axis=0))
+#
+#            Finv = np.linalg.inv(F(r))
+#            xy_orig = np.matmul(Finv, xy_p)
+#            
+        print('Inside Back_Away...')
+
             
 #        left = random.uniform(0, width*ratio - width)
 #        top = random.uniform(0, height*ratio - height)
@@ -720,7 +741,6 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            Back_Away(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
@@ -735,4 +755,6 @@ class SSDAugmentation(object):
         ])
 
     def __call__(self, img, masks, boxes, labels):
+#        print('Printing the traceback you wanted....')
+#        traceback.print_stack()
         return self.augment(img, masks, boxes, labels)

@@ -153,10 +153,13 @@ class COCODetection(data.Dataset):
             target = self.target_transform(target, width, height)
 
         if self.transform is not None:
+            print('In coco.py, just called self.transform...')
+
             if len(target) > 0:
                 target = np.array(target)
                 img, masks, boxes, labels = self.transform(img, masks, target[:, :4],
                     {'num_crowds': num_crowds, 'labels': target[:, 4]})
+                
             
                 # I stored num_crowds in labels so I didn't have to modify the entirety of augmentations
                 num_crowds = labels['num_crowds']

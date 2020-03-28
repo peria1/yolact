@@ -82,6 +82,10 @@ if __name__ == '__main__':
                                   collate_fn=D.detection_collate,
                                   pin_memory=True)
     
+#    for crap in data_loader:
+#        break
+    
+    
     data_loader_iterator = iter(data_loader)
     
     datum = next(data_loader_iterator)    
@@ -101,7 +105,9 @@ if __name__ == '__main__':
     #  
     
     images, (targets, masks, num_crowds) = datum
-    
+    #                 img, masks, boxes, labels = self.transform(img, masks, target[:, :4],
+#                    {'num_crowds': num_crowds, 'labels': target[:, 4]})
+
     #
     # Define a Yolact net, with a fancy combined prediction and loss
     #   function, and use it to process datum. 
@@ -124,6 +130,25 @@ if __name__ == '__main__':
     loss = sum([losses[k] for k in losses])
     
     print('Whoa! We made it! Loss is',loss)
+
+#
+#  Below here I am trying to call the augmentation by hand, to quickly test
+#    my work using a single datum.     
+
+    tform=SSDAugmentation(D.MEANS)
+    
+    img = np.array(images[0].cpu()).transpose((1,2,0))
+    mask = np.array(masks[0].cpu())
+    target = targets[0]
+    target = np.array(target.cpu())
+    nc = num_crowds[0]
+    img, mask, boxes, labels=\
+    tform(img, mask, target[:, :4],
+                    {'num_crowds': nc, 'labels': target[:, 4]})
+
+
+
+
 
 
 
