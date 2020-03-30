@@ -442,7 +442,7 @@ class Expand(object):
 
         return image, masks, boxes, labels
 
-class Back_Away(object): # not implemented yet!
+class BackAway(object): # not implemented yet!
     #  I want to zoom out some of our images so that objects appear smaller. So 
     #   far I just copied from Expand to have a template. WJP
     def __init__(self):
@@ -738,9 +738,11 @@ class SSDAugmentation(object):
     """ Transform to be used when training. """
 
     def __init__(self, mean=MEANS, std=STD):
+        print('In SSDAugmentation init...')
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
+            BackAway(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
@@ -755,6 +757,6 @@ class SSDAugmentation(object):
         ])
 
     def __call__(self, img, masks, boxes, labels):
-#        print('Printing the traceback you wanted....')
+        print('Printing the traceback you wanted....')
 #        traceback.print_stack()
         return self.augment(img, masks, boxes, labels)
