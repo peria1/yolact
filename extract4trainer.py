@@ -19,6 +19,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 
+def npscl(x):
+    for i in range(x.shape[2]):
+        x[:,:,i] = (x[:,:,i]-np.min(x[:,:,i]))/(np.max(x[:,:,i])-np.min(x[:,:,i]))
+    return x
+
 def myshow(img):
     if img.size()[0] != 3:
         maskshow(img)
