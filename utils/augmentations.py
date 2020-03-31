@@ -511,7 +511,7 @@ class BackAway(object):
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
-            ishrnk[xbord,ybord,1]=1
+            ishrnk[ybord, xbord, 1] = 1
             
             
               
