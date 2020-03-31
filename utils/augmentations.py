@@ -449,8 +449,9 @@ class BackAway(object): # not implemented yet!
         self.spline = LSQBivariateSpline
 
     def __call__(self, image, masks, boxes, labels):
-        print('yeah baby, augmenting...')
-        if random.randint(2):
+        print('yeah baby, doing BackAway every time...')
+        if random.randint(2) > 5:
+            print('Rejected!')
             return image, masks, boxes, labels
 
 
@@ -463,17 +464,40 @@ class BackAway(object): # not implemented yet!
 
         
         r = ratio
-#        for m in masks:
-#            image = image * (1-m).reshape((height, width, 1))
-#            
-#            mgtz = m > 0
-#            
-#            x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
-#            
-#            F = lambda r: np.asmatrix([[  r,    0,  x0*(1-r)],\
-#                                       [  0,    r,  y0*(1-r)],\
-#                                       [  0,    0,      1   ]])
-#            
+        for m in masks:
+#            image = image * (m).reshape((height, width, 1))
+#            print('image shape is: ',image.shape)
+            mgtz = m > 0
+#            print('mgtz shape is',mgtz.shape)
+            x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
+            print('x0, y0:',x0,y0)
+            
+            # F collapes the coordinates of the maskes pixels around 
+            #  (x0, y0), by a factor r. 
+            F = lambda r: np.asmatrix([[  r,    0,  x0*(1-r)],\
+                                       [  0,    r,  y0*(1-r)],\
+                                       [  0,    0,      1   ]])
+            
+            # xcrap and ycrap are the coordinates of masked pixels.
+            ycrap = yy[mgtz].reshape((1,-1))
+            xcrap = xx[mgtz].reshape((1,-1))
+            # v is a set augmented vectors, compatible with F, based
+            #   on masked pixels. 
+            v = \
+            np.concatenate((xcrap, ycrap, np.ones(ycrap.shape)), axis=0)
+
+            xy_p = np.round(np.matmul(F(r),v))[0:2,:]
+            
+            
+            iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:]))
+            xpu = np.zeros(iu.shape)
+            ypu = np.zeros(iu.shape)
+            for i,u in enumerate(iter(iu)):
+                xpu[i] = u // height
+                ypu[i] = u % height
+                
+
+
 #            xy_p = np.matmul(F(r), \
 #                    np.concatenate(\
 #                        (np.unique(np.ravel(xx[mgtz]).reshape((1,-1))),\
@@ -481,8 +505,7 @@ class BackAway(object): # not implemented yet!
 #
 #            Finv = np.linalg.inv(F(r))
 #            xy_orig = np.matmul(Finv, xy_p)
-#            
-        print('Inside Back_Away...')
+            
 
             
 #        left = random.uniform(0, width*ratio - width)

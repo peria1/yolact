@@ -18,10 +18,18 @@ from yolact import Yolact
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+import copy
 
-def npscl(x):
+def npscl(xin):
+    x = copy.copy(xin)
     for i in range(x.shape[2]):
-        x[:,:,i] = (x[:,:,i]-np.min(x[:,:,i]))/(np.max(x[:,:,i])-np.min(x[:,:,i]))
+        xx = x[:,:,i]
+        xmax = np.max(xx); xmin = np.min(xx)
+        if xmax > xmin:
+            x[:,:,i] = (xx-xmin)/(xmax-xmin)
+        else:
+            print('All the same!!',i)
+
     return x
 
 def myshow(img):
@@ -143,6 +151,7 @@ if __name__ == '__main__':
     tform=SSDAugmentation(D.MEANS)
     
     img = np.array(images[0].cpu()).transpose((1,2,0))
+    plt.imshow(npscl(img))
     mask = np.array(masks[0].cpu())
     target = targets[0]
     target = np.array(target.cpu())
@@ -151,7 +160,7 @@ if __name__ == '__main__':
     tform(img, mask, target[:, :4],
                     {'num_crowds': nc, 'labels': target[:, 4]})
 
-
+    plt.imshow(npscl(img))
 
 
 
