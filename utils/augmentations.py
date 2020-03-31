@@ -488,7 +488,9 @@ class BackAway(object): # not implemented yet!
 
             xy_p = np.round(np.matmul(F(r),v))[0:2,:]
             
-            
+            # I had to use np.ravel in the following to avoid what I think 
+            #   is a bug in np.unique. It was giving me "per column" unique
+            #   values, when I had not asked for that. 
             iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:]))
             xpu = np.zeros(iu.shape)
             ypu = np.zeros(iu.shape)
@@ -497,6 +499,10 @@ class BackAway(object): # not implemented yet!
                 ypu[i] = u % height
                 
 
+            xypu = np.concatenate((xpu.reshape(1,-1), \
+                                  ypu.reshape(1,-1), \
+                                  np.ones(ypu.shape).reshape(1,-1)))
+            
 
 #            xy_p = np.matmul(F(r), \
 #                    np.concatenate(\
