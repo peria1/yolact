@@ -232,6 +232,8 @@ class ConvertColor(object):
         self.current = current
 
     def __call__(self, image, masks=None, boxes=None, labels=None):
+        print('In ConvertColor, shape is', image.shape)
+        print('and data type is',image.dtype)
         if self.current == 'BGR' and self.transform == 'HSV':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         elif self.current == 'HSV' and self.transform == 'BGR':
@@ -502,9 +504,7 @@ class BackAway(object):
             
             ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
               
-        print('Not multiplying mask...')
-        print(ishrnk.shape)
-        image = ishrnk # + (1-masksum.reshape(m.shape[0],m.shape[1],1))*image
+        image = (ishrnk + (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
         return image, masks, boxes, labels
 
 
@@ -740,6 +740,7 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
+            BackAway(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),

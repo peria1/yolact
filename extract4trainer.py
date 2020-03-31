@@ -151,6 +151,7 @@ if __name__ == '__main__':
     tform=SSDAugmentation(D.MEANS)
     
     img = np.array(images[0].cpu()).transpose((1,2,0))
+    img0 = copy.copy(img)
     plt.imshow(npscl(img))
     mask = np.array(masks[0].cpu())
     target = targets[0]
