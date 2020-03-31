@@ -7,7 +7,7 @@ from numpy import random
 from math import sqrt
 import traceback
 
-from scipy.interpolate import LSQBivariateSpline
+from scipy.interpolate import LSQBivariateSpline, griddata
 
 from data import cfg, MEANS, STD
 
@@ -442,20 +442,17 @@ class Expand(object):
 
         return image, masks, boxes, labels
 
-class BackAway(object): # not implemented yet!
+class BackAway(object): 
     #  I want to zoom out some of our images so that objects appear smaller. So 
-    #   far I just copied from Expand to have a template. WJP
-    def __init__(self):
-        self.spline = LSQBivariateSpline
+    #    WJP
+#    def __init__(self):
+#        self.spline = LSQBivariateSpline
 
     def __call__(self, image, masks, boxes, labels):
-        print('yeah baby, doing BackAway every time...')
+        print('yeah baby, doing BackAway every single time...')
         if random.randint(2) > 5:
             print('Rejected!')
             return image, masks, boxes, labels
-
-
-#        fill = self.spline(x,y,z,tx,ty)
 
         height, width, depth = image.shape
         ratio = random.uniform(0.33,1)
@@ -464,13 +461,13 @@ class BackAway(object): # not implemented yet!
 
         
         r = ratio
+        r=0.33
+        ishrnk = np.zeros(image.shape)
+        masksum = np.zeros(masks.shape[1:])
         for m in masks:
-#            image = image * (m).reshape((height, width, 1))
-#            print('image shape is: ',image.shape)
+            masksum += m
             mgtz = m > 0
-#            print('mgtz shape is',mgtz.shape)
             x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
-            print('x0, y0:',x0,y0)
             
             # F collapes the coordinates of the maskes pixels around 
             #  (x0, y0), by a factor r. 
@@ -478,13 +475,13 @@ class BackAway(object): # not implemented yet!
                                        [  0,    r,  y0*(1-r)],\
                                        [  0,    0,      1   ]])
             
-            # xcrap and ycrap are the coordinates of masked pixels.
-            ycrap = yy[mgtz].reshape((1,-1))
-            xcrap = xx[mgtz].reshape((1,-1))
+            # xmask and ymask are the coordinates of masked pixels.
+            ymask = yy[mgtz].reshape((1,-1))
+            xmask = xx[mgtz].reshape((1,-1))
             # v is a set augmented vectors, compatible with F, based
             #   on masked pixels. 
             v = \
-            np.concatenate((xcrap, ycrap, np.ones(ycrap.shape)), axis=0)
+            np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
 
             xy_p = np.round(np.matmul(F(r),v))[0:2,:]
             
@@ -492,50 +489,22 @@ class BackAway(object): # not implemented yet!
             #   is a bug in np.unique. It was giving me "per column" unique
             #   values, when I had not asked for that. 
             iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:]))
-            xpu = np.zeros(iu.shape)
-            ypu = np.zeros(iu.shape)
-            for i,u in enumerate(iter(iu)):
-                xpu[i] = u // height
-                ypu[i] = u % height
                 
+            xpu = (iu // height).astype(int)
+            ypu = (iu % height).astype(int)
 
             xypu = np.concatenate((xpu.reshape(1,-1), \
                                   ypu.reshape(1,-1), \
                                   np.ones(ypu.shape).reshape(1,-1)))
             
-
-#            xy_p = np.matmul(F(r), \
-#                    np.concatenate(\
-#                        (np.unique(np.ravel(xx[mgtz]).reshape((1,-1))),\
-#                         np.unique(np.ravel(yy[mgtz]).reshape((1,-1)))), axis=0))
-#
-#            Finv = np.linalg.inv(F(r))
-#            xy_orig = np.matmul(Finv, xy_p)
+            Finv = np.linalg.inv(F(r))
+            xy_orig = np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int)
             
-
-            
-#        left = random.uniform(0, width*ratio - width)
-#        top = random.uniform(0, height*ratio - height)
-#
-#        expand_image = np.zeros(
-#            (int(height*ratio), int(width*ratio), depth),
-#            dtype=image.dtype)
-#        expand_image[:, :, :] = self.mean
-#        expand_image[int(top):int(top + height),
-#                     int(left):int(left + width)] = image
-#        image = expand_image
-#
-#        expand_masks = np.zeros(
-#            (masks.shape[0], int(height*ratio), int(width*ratio)),
-#            dtype=masks.dtype)
-#        expand_masks[:,int(top):int(top + height),
-#                       int(left):int(left + width)] = masks
-#        masks = expand_masks
-#
-#        boxes = boxes.copy()
-#        boxes[:, :2] += (int(left), int(top))
-#        boxes[:, 2:] += (int(left), int(top))
-#
+            ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
+              
+        print('Not multiplying mask...')
+        print(ishrnk.shape)
+        image = ishrnk # + (1-masksum.reshape(m.shape[0],m.shape[1],1))*image
         return image, masks, boxes, labels
 
 
@@ -771,7 +740,6 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            BackAway(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
