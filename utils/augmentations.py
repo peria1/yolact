@@ -447,8 +447,6 @@ class Expand(object):
 class BackAway(object): 
     #  I want to zoom out some of our images so that objects appear smaller. So 
     #    WJP
-#    def __init__(self):
-#        self.spline = LSQBivariateSpline
 
     def __call__(self, image, masks, boxes, labels):
         print('yeah baby, doing BackAway every single time...')
@@ -463,12 +461,13 @@ class BackAway(object):
 
         
         r = ratio
-        r=0.33
         ishrnk = np.zeros(image.shape)
         masksum = np.zeros(masks.shape[1:])
         for m in masks:
             masksum += m
             mgtz = m > 0
+            imgtz = np.ravel(xx[mgtz]*height + yy[mgtz]).astype(int)
+            
             x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
             
             # F collapes the coordinates of the maskes pixels around 
@@ -486,14 +485,18 @@ class BackAway(object):
             np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
 
             xy_p = np.round(np.matmul(F(r),v))[0:2,:]
-            
             # I had to use np.ravel in the following to avoid what I think 
             #   is a bug in np.unique. It was giving me "per column" unique
             #   values, when I had not asked for that. 
-            iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:]))
+            #
+            # One thing I learned is that xy_p is a matrix, rather than an array,
+            #   which is a distinction I am not used to drawing, and it seems
+            #   to make the difference here. 
+            #
+            iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:])).astype(int)
                 
-            xpu = (iu // height).astype(int)
-            ypu = (iu % height).astype(int)
+            xpu = (iu // height)
+            ypu = (iu % height)
 
             xypu = np.concatenate((xpu.reshape(1,-1), \
                                   ypu.reshape(1,-1), \
@@ -503,8 +506,18 @@ class BackAway(object):
             xy_orig = np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int)
             
             ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
+            
+            ibordset = set(imgtz) - set(iu)
+            ibord = np.fromiter(ibordset, int, len(ibordset))
+            xbord = ibord // height
+            ybord = ibord % height
+            ishrnk[xbord,ybord,1]=1
+            
+            
               
-        image = (ishrnk + (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
+        image = (ishrnk + \
+                 (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
+        
         return image, masks, boxes, labels
 
 
