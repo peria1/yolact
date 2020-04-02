@@ -449,12 +449,12 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        if random.randint(2) > 5:
+        if random.randint(2) > 0:
             print('Rejected!')
             return image, masks, boxes, labels
 
         height, width, depth = image.shape
-        ratio = random.uniform(0.33,1)
+        ratio = random.uniform(0.33,0.9)
         
         xx, yy = np.meshgrid(np.arange(width), np.arange(height))
 
@@ -505,7 +505,7 @@ class Shrinker(object):
             
             Finv = np.linalg.inv(F(r))
             xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
-            print(xy_orig.shape)
+#            print(xy_orig.shape)
             
             ffs = (xy_orig.shape)[1]
             x = xy_orig[0,:].reshape(ffs)
@@ -772,17 +772,29 @@ class SSDAugmentation(object):
             ToAbsoluteCoords(),
             Shrinker(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
-            enable_if(cfg.augment_expand, Expand(mean)),
-            enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
-            enable_if(cfg.augment_random_mirror, RandomMirror()),
-            enable_if(cfg.augment_random_flip, RandomFlip()),
-            enable_if(cfg.augment_random_flip, RandomRot90()),
-            Resize(),
+            RandomMirror(),
+            RandomFlip(),
+            RandomRot90(),
             enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
             ToPercentCoords(),
             PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
             BackboneTransform(cfg.backbone.transform, mean, std, 'BGR')
         ])
+# original code from the [] above. 
+#            ConvertFromInts(),
+#            ToAbsoluteCoords(),
+#            Shrinker(),
+#            enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
+#            enable_if(cfg.augment_expand, Expand(mean)),
+#            enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
+#            enable_if(cfg.augment_random_mirror, RandomMirror()),
+#            enable_if(cfg.augment_random_flip, RandomFlip()),
+#            enable_if(cfg.augment_random_flip, RandomRot90()),
+#            Resize(),
+#            enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
+#            ToPercentCoords(),
+#            PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
+#            BackboneTransform(cfg.backbone.transform, mean, std, 'BGR')
 
     def __call__(self, img, masks, boxes, labels):
 #        print('Printing the traceback you wanted....')
