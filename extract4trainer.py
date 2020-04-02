@@ -87,16 +87,13 @@ if __name__ == '__main__':
         matplotlib.use(backend_I_want)    
     
     batch_size = 4
-    num_workers = 1
+    num_workers = 0
     
     data_loader = torch.utils.data.DataLoader(dataset, batch_size,
                                   num_workers=num_workers,
                                   shuffle=True, 
                                   collate_fn=D.detection_collate,
                                   pin_memory=True)
-    
-#    for crap in data_loader:
-#        break
     
     
     data_loader_iterator = iter(data_loader)
