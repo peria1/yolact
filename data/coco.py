@@ -67,6 +67,8 @@ class COCODetection(data.Dataset):
         # Do this here because we have too many things named COCO
         from pycocotools.coco import COCO
         
+#        print('In COCODetection init...')
+        
         if target_transform is None:
             target_transform = COCOAnnotationTransform()
 
@@ -82,6 +84,7 @@ class COCODetection(data.Dataset):
         
         self.name = dataset_name
         self.has_gt = has_gt
+        print('Done with COCODetection init.')
 
     def __getitem__(self, index):
         """
@@ -91,6 +94,7 @@ class COCODetection(data.Dataset):
             tuple: Tuple (image, (target, masks, num_crowds)).
                    target is the object returned by ``coco.loadAnns``.
         """
+#        print('In COCO __getitem__...')
         im, gt, masks, h, w, num_crowds = self.pull_item(index)
         return im, (gt, masks, num_crowds)
 
@@ -106,6 +110,13 @@ class COCODetection(data.Dataset):
                    target is the object returned by ``coco.loadAnns``.
             Note that if no crowd annotations exist, crowd will be None
         """
+
+#        with open('coco_was_called.txt','a+') as fp:
+#            import time
+#            fp.write(time.ctime()+ ' At top of coco pull_item...')
+#            fp.write('\n')
+
+        
         img_id = self.ids[index]
 
         if self.has_gt:
@@ -153,7 +164,12 @@ class COCODetection(data.Dataset):
             target = self.target_transform(target, width, height)
 
         if self.transform is not None:
-            print('In coco.py, just called self.transform...')
+
+            import time
+#            print('In coco.py, just called self.transform...')
+#            with open('coco_was_called.txt','a+') as fp:
+#                fp.write(time.ctime())
+#                fp.write('\n')
 
             if len(target) > 0:
                 target = np.array(target)

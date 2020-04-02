@@ -232,8 +232,8 @@ class ConvertColor(object):
         self.current = current
 
     def __call__(self, image, masks=None, boxes=None, labels=None):
-        print('In ConvertColor, shape is', image.shape)
-        print('and data type is',image.dtype)
+#        print('In ConvertColor, shape is', image.shape)
+#        print('and data type is',image.dtype)
         if self.current == 'BGR' and self.transform == 'HSV':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         elif self.current == 'HSV' and self.transform == 'BGR':
@@ -444,12 +444,11 @@ class Expand(object):
 
         return image, masks, boxes, labels
 
-class BackAway(object): 
-    #  I want to zoom out some of our images so that objects appear smaller. So 
+class Shrinker(object): 
+    #  I want to zoom out some of our images so that objects appear smaller. 
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        print('yeah baby, doing BackAway every single time...')
         if random.randint(2) > 5:
             print('Rejected!')
             return image, masks, boxes, labels
@@ -459,7 +458,6 @@ class BackAway(object):
         
         xx, yy = np.meshgrid(np.arange(width), np.arange(height))
 
-        
         r = ratio
         ishrnk = np.zeros(image.shape)
         masksum = np.zeros(masks.shape[1:])
@@ -497,13 +495,25 @@ class BackAway(object):
                 
             xpu = (iu // height)
             ypu = (iu % height)
+            
+#            print('xpu,ypu:',np.max(xpu),np.max(ypu))
+#            print(ishrnk.shape)
 
             xypu = np.concatenate((xpu.reshape(1,-1), \
                                   ypu.reshape(1,-1), \
                                   np.ones(ypu.shape).reshape(1,-1)))
             
             Finv = np.linalg.inv(F(r))
-            xy_orig = np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int)
+            xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
+            print(xy_orig.shape)
+            
+            ffs = (xy_orig.shape)[1]
+            x = xy_orig[0,:].reshape(ffs)
+            y = xy_orig[1,:].reshape(ffs)
+            xy_orig[0, x >= width] = width-1
+            xy_orig[0, x < 0] = 0
+            xy_orig[1, y >= height] = height-1
+            xy_orig[1, y < 0] = 0
             
             ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
             
@@ -753,7 +763,7 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            BackAway(),
+            Shrinker(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             enable_if(cfg.augment_expand, Expand(mean)),
             enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
@@ -768,6 +778,6 @@ class SSDAugmentation(object):
         ])
 
     def __call__(self, img, masks, boxes, labels):
-        print('Printing the traceback you wanted....')
+#        print('Printing the traceback you wanted....')
 #        traceback.print_stack()
         return self.augment(img, masks, boxes, labels)
