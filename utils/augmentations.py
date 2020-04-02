@@ -521,10 +521,17 @@ class Shrinker(object):
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
-            ishrnk[ybord, xbord, 1] = 1
             
-            
-              
+            pick = (m==0).ravel()
+            for i in range(3):
+                ishrnk[ybord, xbord, i] = \
+                griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
+                                              image[:,:,i].ravel()[pick], \
+                                              (xbord, ybord), method='nearest') 
+#            ishrnk[ybord, xbord, 1] = 1
+         
+
+             
         image = (ishrnk + \
                  (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
         
