@@ -145,23 +145,23 @@ if __name__ == '__main__':
 #  Below here I am trying to call the augmentation by hand, to quickly test
 #    my work using a single datum.     
 
-    tform=SSDAugmentation(D.MEANS)
-    
-    img = np.array(images[0].cpu()).transpose((1,2,0))
-    img0 = copy.copy(img)
-    mask = np.array(masks[0].cpu())
-    target = targets[0]
-    target = np.array(target.cpu())
-    nc = num_crowds[0]
-    img, mask, boxes, labels=\
-    tform(img, mask, target[:, :4],
-                    {'num_crowds': nc, 'labels': target[:, 4]})
-
-    plt.imshow(npscl(img0))
-
-    plt.imshow(npscl(img))
-
-
+#    tform=SSDAugmentation(D.MEANS)
+#    
+#    img = np.array(images[0].cpu()).transpose((1,2,0))
+#    img0 = copy.copy(img)
+#    mask = np.array(masks[0].cpu())
+#    target = targets[0]
+#    target = np.array(target.cpu())
+#    nc = num_crowds[0]
+#    img, mask, boxes, labels=\
+#    tform(img, mask, target[:, :4],
+#                    {'num_crowds': nc, 'labels': target[:, 4]})
+#
+#    plt.imshow(npscl(img0))
+#
+#    plt.imshow(npscl(img))
+#
+#
 
 
 
