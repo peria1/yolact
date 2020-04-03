@@ -112,6 +112,7 @@ class Pad(object):
         self.pad_gt = pad_gt
 
     def __call__(self, image, masks, boxes=None, labels=None):
+        print('Entering Pad...')
         im_h, im_w, depth = image.shape
 
         expand_image = np.zeros(
@@ -126,6 +127,8 @@ class Pad(object):
                 dtype=masks.dtype)
             expand_masks[:,:im_h,:im_w] = masks
             masks = expand_masks
+
+        print('Done with Pad...')
 
         return expand_image, masks, boxes, labels
 
@@ -415,6 +418,8 @@ class Expand(object):
         self.mean = mean
 
     def __call__(self, image, masks, boxes, labels):
+        print('Entering Expand...')
+
         if random.randint(2):
             return image, masks, boxes, labels
 
@@ -442,6 +447,7 @@ class Expand(object):
         boxes[:, :2] += (int(left), int(top))
         boxes[:, 2:] += (int(left), int(top))
 
+        print('Doen with  Expand...')
         return image, masks, boxes, labels
 
 class Shrinker(object): 
@@ -449,7 +455,8 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        if random.randint(2) > 0:
+        print('Entering Shrinker....executing every time...')
+        if random.randint(2) > 2:
             print('Rejected!')
             return image, masks, boxes, labels
 
@@ -534,18 +541,23 @@ class Shrinker(object):
              
         image = (ishrnk + \
                  (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
-        
+ 
+        print('Done with  Shrinker....')
+       
         return image, masks, boxes, labels
 
 
 class RandomMirror(object):
     def __call__(self, image, masks, boxes, labels):
+        print('Entering RandomMirror...')
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
             masks = masks[:, :, ::-1]
             boxes = boxes.copy()
             boxes[:, 0::2] = width - boxes[:, 2::-2]
+        print('Done with  RandomMirror...')
+
         return image, masks, boxes, labels
 
 
@@ -775,6 +787,7 @@ class SSDAugmentation(object):
             RandomMirror(),
             RandomFlip(),
             RandomRot90(),
+            Resize(),
             enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
             ToPercentCoords(),
             PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
