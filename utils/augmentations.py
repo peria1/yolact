@@ -112,7 +112,7 @@ class Pad(object):
         self.pad_gt = pad_gt
 
     def __call__(self, image, masks, boxes=None, labels=None):
-        print('Entering Pad...')
+#        print('Entering Pad...')
         im_h, im_w, depth = image.shape
 
         expand_image = np.zeros(
@@ -128,7 +128,7 @@ class Pad(object):
             expand_masks[:,:im_h,:im_w] = masks
             masks = expand_masks
 
-        print('Done with Pad...')
+#        print('Done with Pad...')
 
         return expand_image, masks, boxes, labels
 
@@ -418,7 +418,7 @@ class Expand(object):
         self.mean = mean
 
     def __call__(self, image, masks, boxes, labels):
-        print('Entering Expand...')
+#        print('Entering Expand...')
 
         if random.randint(2):
             return image, masks, boxes, labels
@@ -447,7 +447,7 @@ class Expand(object):
         boxes[:, :2] += (int(left), int(top))
         boxes[:, 2:] += (int(left), int(top))
 
-        print('Doen with  Expand...')
+#        print('Doen with  Expand...')
         return image, masks, boxes, labels
 
 class Shrinker(object): 
@@ -455,9 +455,9 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        print('Entering Shrinker....executing every time...')
-        if random.randint(2) > 2:
-            print('Rejected!')
+#        print('Entering Shrinker....executing every time...')
+        if random.randint(2) > 0:
+#            print('Rejected!')
             return image, masks, boxes, labels
 
         height, width, depth = image.shape
@@ -468,7 +468,8 @@ class Shrinker(object):
         r = ratio
         ishrnk = np.zeros(image.shape)
         masksum = np.zeros(masks.shape[1:])
-        for m in masks:
+        newmasksum = np.zeros(masks.shape[1:])
+        for imask, m in enumerate(masks):
             masksum += m
             mgtz = m > 0
             imgtz = np.ravel(xx[mgtz]*height + yy[mgtz]).astype(int)
@@ -530,33 +531,52 @@ class Shrinker(object):
             ybord = ibord % height
             
             pick = (m==0).ravel()
+            scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
             for i in range(3):
-                ishrnk[ybord, xbord, i] = \
+                ishrnk[ybord[scram], xbord[scram], i] = \
                 griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
                                               image[:,:,i].ravel()[pick], \
                                               (xbord, ybord), method='nearest') 
-#            ishrnk[ybord, xbord, 1] = 1
-         
 
-             
+            b = boxes[imask]
+            bv = np.asarray([[b[0], b[2]], [b[1], b[3]],[1, 1]])
+            bvp = np.matmul(F(r), bv)
+            xmin, ymin, xmax, ymax = bvp[0,0], bvp[1,0], bvp[0,1], bvp[1,1] 
+            
+            boxes[imask] = np.asarray([xmin, ymin, xmax, ymax])
+
+            # Now shrink the current mask m and accumulate into newmasksum. 
+            m[:] = 0
+            m[ypu, xpu] = 1
+            newmasksum += m
+            
+#            print(boxes[imask])
+#            print(np.min(xpu), np.min(ypu), np.max(xpu), np.max(ypu))
+        
+        mss = masksum.shape
+        allmasksum = \
+        np.asarray(\
+        [1 if mns > 0 else 0 for mns in \
+         iter((masksum + newmasksum).ravel())]).reshape(mss)
+            
         image = (ishrnk + \
-                 (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
+                 (1-allmasksum.reshape(mss[0], mss[1], 1))*image).astype(np.float32)
  
-        print('Done with  Shrinker....')
+#        print('Done with  Shrinker....')
        
         return image, masks, boxes, labels
 
 
 class RandomMirror(object):
     def __call__(self, image, masks, boxes, labels):
-        print('Entering RandomMirror...')
+#        print('Entering RandomMirror...')
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
             masks = masks[:, :, ::-1]
             boxes = boxes.copy()
             boxes[:, 0::2] = width - boxes[:, 2::-2]
-        print('Done with  RandomMirror...')
+#        print('Done with  RandomMirror...')
 
         return image, masks, boxes, labels
 
