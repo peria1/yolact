@@ -84,7 +84,7 @@ class COCODetection(data.Dataset):
         
         self.name = dataset_name
         self.has_gt = has_gt
-        print('Done with COCODetection init.')
+#        print('Done with COCODetection init.')
 
     def __getitem__(self, index):
         """
