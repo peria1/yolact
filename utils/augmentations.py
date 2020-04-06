@@ -798,7 +798,7 @@ class SSDAugmentation(object):
     """ Transform to be used when training. """
 
     def __init__(self, mean=MEANS, std=STD):
-        print('In SSDAugmentation init...')
+#        print('In SSDAugmentation init...')
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
@@ -813,6 +813,7 @@ class SSDAugmentation(object):
             PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
             BackboneTransform(cfg.backbone.transform, mean, std, 'BGR')
         ])
+#        print('...done with SSDAugmentation init.')
 # original code from the [] above. 
 #            ConvertFromInts(),
 #            ToAbsoluteCoords(),
