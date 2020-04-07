@@ -39,6 +39,10 @@ from tkinter import filedialog, simpledialog
 import numpy as np
 from PIL import ImageTk,Image
 import platform as platf
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+import matplotlib
 
 class_list = []
 label_map = {}
@@ -107,6 +111,7 @@ class ImageChecker(tk.Frame):
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
  
+        matplotlib.use('Qt5Agg')
         self.dataset = dataset
 
         try:
@@ -159,7 +164,14 @@ class ImageChecker(tk.Frame):
 #        self.entry = tk.Entry(self, width=80, font=font)
 #        self.entry.insert(0, self.current_comment)
         
-        self.canvas = tk.Canvas(self,  width=1024, height=768)
+#        self.canvas = tk.Canvas(self,  width=1024, height=768)
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # A tk.DrawingArea.
+        self.canvas.get_tk_widget().grid(row=1,column=4,columnspan=3,rowspan=20)
+
+        self.canvas.draw()
         self.show_next_image(None)
        
         self.enough = tk.Button(self, text="Enough, already!")
@@ -169,7 +181,7 @@ class ImageChecker(tk.Frame):
         self.next.bind('<Button-1>', self.show_next_image)
     
         self.label.grid(row=0,columnspan=2)
-        self.canvas.grid(row=1,column=0, columnspan=2)
+#        self.canvas.grid(row=1,column=0, columnspan=2)
         self.enough.grid(row=3,column=0)
         self.next.grid(row=3,column=2)
         
@@ -188,16 +200,18 @@ class ImageChecker(tk.Frame):
     
                 try:
                     img = Image.open(self.images_dir + image_file)
-                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
-                    width, height = self.img_display_size
-                    self.canvas.create_image(width, height, \
-                                          image=self.img) 
+                    self.ax.imshow(img)
                     
+#                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
+#                    width, height = self.img_display_size
+#                    self.canvas.create_image(width, height, \
+#                                          image=self.img) 
+#                    
                     anno = self.dataset.pull_anno(i_img)
                     # Seems crazy, but I had to subtract 1 from the label_map value...
                     for a in anno:
                         print(self.classes[self.label_map[a['category_id']]-1])
-                    
+                    print('|')
                     break
                 except FileNotFoundError:
                     print('oops',image_file,'does not seem to exist...')
