@@ -1,10 +1,13 @@
 import torch
-from torchvision import transforms
+#from torchvision import transforms
 import cv2
 import numpy as np
 import types
 from numpy import random
 from math import sqrt
+import traceback
+
+from scipy.interpolate import LSQBivariateSpline, griddata
 
 from data import cfg, MEANS, STD
 
@@ -109,6 +112,7 @@ class Pad(object):
         self.pad_gt = pad_gt
 
     def __call__(self, image, masks, boxes=None, labels=None):
+#        print('Entering Pad...')
         im_h, im_w, depth = image.shape
 
         expand_image = np.zeros(
@@ -123,6 +127,8 @@ class Pad(object):
                 dtype=masks.dtype)
             expand_masks[:,:im_h,:im_w] = masks
             masks = expand_masks
+
+#        print('Done with Pad...')
 
         return expand_image, masks, boxes, labels
 
@@ -229,6 +235,8 @@ class ConvertColor(object):
         self.current = current
 
     def __call__(self, image, masks=None, boxes=None, labels=None):
+#        print('In ConvertColor, shape is', image.shape)
+#        print('and data type is',image.dtype)
         if self.current == 'BGR' and self.transform == 'HSV':
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         elif self.current == 'HSV' and self.transform == 'BGR':
@@ -410,6 +418,8 @@ class Expand(object):
         self.mean = mean
 
     def __call__(self, image, masks, boxes, labels):
+#        print('Entering Expand...')
+
         if random.randint(2):
             return image, masks, boxes, labels
 
@@ -437,29 +447,29 @@ class Expand(object):
         boxes[:, :2] += (int(left), int(top))
         boxes[:, 2:] += (int(left), int(top))
 
+#        print('Doen with  Expand...')
         return image, masks, boxes, labels
 
- 
-class Shrink(object): 
-    #  I want to zoom out some of our images so that objects appear smaller. So 
+class Shrinker(object): 
+    #  I want to zoom out some of our images so that objects appear smaller. 
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        print('yeah baby, doing BackAway every single time...')
-        if random.randint(2) > 5:
-            print('Rejected!')
+#        print('Entering Shrinker....executing every time...')
+        if random.randint(2) > 0:
+#            print('Rejected!')
             return image, masks, boxes, labels
 
         height, width, depth = image.shape
-        ratio = random.uniform(0.33,1)
+        ratio = random.uniform(0.33,0.9)
         
         xx, yy = np.meshgrid(np.arange(width), np.arange(height))
 
-        
         r = ratio
         ishrnk = np.zeros(image.shape)
         masksum = np.zeros(masks.shape[1:])
-        for m in masks:
+        newmasksum = np.zeros(masks.shape[1:])
+        for imask, m in enumerate(masks):
             masksum += m
             mgtz = m > 0
             imgtz = np.ravel(xx[mgtz]*height + yy[mgtz]).astype(int)
@@ -493,13 +503,25 @@ class Shrink(object):
                 
             xpu = (iu // height)
             ypu = (iu % height)
+            
+#            print('xpu,ypu:',np.max(xpu),np.max(ypu))
+#            print(ishrnk.shape)
 
             xypu = np.concatenate((xpu.reshape(1,-1), \
                                   ypu.reshape(1,-1), \
                                   np.ones(ypu.shape).reshape(1,-1)))
             
             Finv = np.linalg.inv(F(r))
-            xy_orig = np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int)
+            xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
+#            print(xy_orig.shape)
+            
+            ffs = (xy_orig.shape)[1]
+            x = xy_orig[0,:].reshape(ffs)
+            y = xy_orig[1,:].reshape(ffs)
+            xy_orig[0, x >= width] = width-1
+            xy_orig[0, x < 0] = 0
+            xy_orig[1, y >= height] = height-1
+            xy_orig[1, y < 0] = 0
             
             ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
             
@@ -507,24 +529,55 @@ class Shrink(object):
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
-            ishrnk[ybord, xbord, 1] = 1
             
+            pick = (m==0).ravel()
+            scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
+            for i in range(3):
+                ishrnk[ybord[scram], xbord[scram], i] = \
+                griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
+                                              image[:,:,i].ravel()[pick], \
+                                              (xbord, ybord), method='nearest') 
+
+            b = boxes[imask]
+            bv = np.asarray([[b[0], b[2]], [b[1], b[3]],[1, 1]])
+            bvp = np.matmul(F(r), bv)
+            xmin, ymin, xmax, ymax = bvp[0,0], bvp[1,0], bvp[0,1], bvp[1,1] 
             
-              
-        image = (ishrnk + \
-                 (1-masksum.reshape(m.shape[0],m.shape[1],1))*image).astype(np.float32)
+            boxes[imask] = np.asarray([xmin, ymin, xmax, ymax])
+
+            # Now shrink the current mask m and accumulate into newmasksum. 
+            m[:] = 0
+            m[ypu, xpu] = 1
+            newmasksum += m
+            
+#            print(boxes[imask])
+#            print(np.min(xpu), np.min(ypu), np.max(xpu), np.max(ypu))
         
+        mss = masksum.shape
+        allmasksum = \
+        np.asarray(\
+        [1 if mns > 0 else 0 for mns in \
+         iter((masksum + newmasksum).ravel())]).reshape(mss)
+            
+        image = (ishrnk + \
+                 (1-allmasksum.reshape(mss[0], mss[1], 1))*image).astype(np.float32)
+ 
+#        print('Done with  Shrinker....')
+       
         return image, masks, boxes, labels
 
 
 class RandomMirror(object):
     def __call__(self, image, masks, boxes, labels):
+#        print('Entering RandomMirror...')
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
             masks = masks[:, :, ::-1]
             boxes = boxes.copy()
             boxes[:, 0::2] = width - boxes[:, 2::-2]
+#        print('Done with  RandomMirror...')
+
         return image, masks, boxes, labels
 
 
@@ -745,21 +798,39 @@ class SSDAugmentation(object):
     """ Transform to be used when training. """
 
     def __init__(self, mean=MEANS, std=STD):
+#        print('In SSDAugmentation init...')
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
+            Shrinker(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
-            enable_if(cfg.augment_expand, Expand(mean)),
-            enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
-            enable_if(cfg.augment_random_mirror, RandomMirror()),
-            enable_if(cfg.augment_random_flip, RandomFlip()),
-            enable_if(cfg.augment_random_flip, RandomRot90()),
+            RandomMirror(),
+            RandomFlip(),
+            RandomRot90(),
             Resize(),
             enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
             ToPercentCoords(),
             PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
             BackboneTransform(cfg.backbone.transform, mean, std, 'BGR')
         ])
+#        print('...done with SSDAugmentation init.')
+# original code from the [] above. 
+#            ConvertFromInts(),
+#            ToAbsoluteCoords(),
+#            Shrinker(),
+#            enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
+#            enable_if(cfg.augment_expand, Expand(mean)),
+#            enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
+#            enable_if(cfg.augment_random_mirror, RandomMirror()),
+#            enable_if(cfg.augment_random_flip, RandomFlip()),
+#            enable_if(cfg.augment_random_flip, RandomRot90()),
+#            Resize(),
+#            enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
+#            ToPercentCoords(),
+#            PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
+#            BackboneTransform(cfg.backbone.transform, mean, std, 'BGR')
 
     def __call__(self, img, masks, boxes, labels):
+#        print('Printing the traceback you wanted....')
+#        traceback.print_stack()
         return self.augment(img, masks, boxes, labels)
