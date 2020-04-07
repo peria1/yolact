@@ -169,7 +169,7 @@ class ImageChecker(tk.Frame):
         self.ax = self.fig.add_subplot(111)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # A tk.DrawingArea.
-        self.canvas.get_tk_widget().grid(row=1,column=4,columnspan=3,rowspan=20)
+        self.canvas.get_tk_widget().grid(row=1,columnspan=3)
 
         self.canvas.draw()
         self.show_next_image(None)
@@ -200,8 +200,10 @@ class ImageChecker(tk.Frame):
     
                 try:
                     img = Image.open(self.images_dir + image_file)
+                    print('About to show' , image_file)
                     self.ax.imshow(img)
-                    
+                    self.canvas.draw()
+                    print('imshow has been called!')
 #                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
 #                    width, height = self.img_display_size
 #                    self.canvas.create_image(width, height, \
