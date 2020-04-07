@@ -103,10 +103,13 @@ class ImageChecker(tk.Frame):
         top = tk.Toplevel(self.root)
         top.withdraw()  # ...in secret....
 
-        infile = \
-            filedialog.askopenfilename(parent=top, \
-                                        title='Choose JSON file')
+#        infile = \
+#            filedialog.askopenfilename(parent=top, \
+#                                        title='Choose JSON file')
 
+        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
+        'data/coco/annotations/milliCOCO.json'
+        
         dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
@@ -130,10 +133,11 @@ class ImageChecker(tk.Frame):
         self.images_dir = '/'.join(infile.split('/')[0:-2]) + '/images/'
 
         self.json = js_all
-        self.image_ids = js_all['images']
-        self.annotations = js_all['annotations']
+#        self.image_ids = js_all['images']
+#        self.annotations = js_all['annotations']
 #        n_ann = len(js_all['annotations'])
-        n_img = len(js_all['images'])
+#        n_img = len(js_all['images'])
+        n_img = len(dataset.ids)
         
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
 #        self.img_display_size = (800,600)
@@ -209,15 +213,15 @@ class ImageChecker(tk.Frame):
                     anno = self.dataset.pull_anno(i_img)
                     # Seems crazy, but I had to subtract 1 from the label_map value...
                     for a in anno:
-#                        print(self.classes[self.label_map[a['category_id']]-1])
                         x0, y0, w, h = a['bbox']
+                        labeltext = self.classes[self.label_map[a['category_id']]-1]
+                        
                         self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
                                      [y0, y0,   y0+h, y0+h, y0])
-#                        y0, x0, y1, x1 = a['bbox']
-#                        self.ax.plot([x0, x1, x1, x0, x0],\
-#                                     [y0, y0, y1, y1, y0],'o')
-
-#                    print('|')
+                        self.ax.text(x0+w/2, y0+h/2, labeltext, \
+                         horizontalalignment='center', verticalalignment='center',\
+                         color='black', bbox=dict(facecolor='yellow', alpha=0.5))
+                        
                     self.canvas.draw()
                     break
 
