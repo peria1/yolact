@@ -164,12 +164,11 @@ class ImageChecker(tk.Frame):
 #        self.entry.insert(0, self.current_comment)
         
 #        self.canvas = tk.Canvas(self,  width=1024, height=768)
-        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.fig = Figure(figsize=(8,8), dpi=100)
         self.ax = self.fig.add_subplot(111)
         
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # A tk.DrawingArea.
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)  # A tk.DrawingArea.
 
-#        self.canvas.draw()
        
         self.enough = tk.Button(self, text="Enough, already!")
         self.enough.bind('<Button-1>', self.byebye)
@@ -211,9 +210,13 @@ class ImageChecker(tk.Frame):
                     # Seems crazy, but I had to subtract 1 from the label_map value...
                     for a in anno:
 #                        print(self.classes[self.label_map[a['category_id']]-1])
-                        x0, w, y0, h = a['bbox']
+                        x0, y0, w, h = a['bbox']
                         self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
                                      [y0, y0,   y0+h, y0+h, y0])
+#                        y0, x0, y1, x1 = a['bbox']
+#                        self.ax.plot([x0, x1, x1, x0, x0],\
+#                                     [y0, y0, y1, y1, y0],'o')
+
 #                    print('|')
                     self.canvas.draw()
                     break
