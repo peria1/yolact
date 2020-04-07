@@ -74,8 +74,11 @@ if __name__ == '__main__':
     #
     print('Before data set def, backend is',matplotlib.get_backend())
     dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
-                            info_file=D.cfg.dataset.train_info,
+                            info_file='./data/coco/annotations/milliCOCO.json',
                             transform=SSDAugmentation(D.MEANS))
+    
+#                                info_file=D.cfg.dataset.train_info,
+
     print('After data set def, backend is',matplotlib.get_backend())
 
 #
