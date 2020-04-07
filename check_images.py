@@ -136,7 +136,7 @@ class ImageChecker(tk.Frame):
         n_img = len(js_all['images'])
         
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
-        self.img_display_size = (800,600)
+#        self.img_display_size = (800,600)
 
 
         pad=3 # Why? 
@@ -151,15 +151,14 @@ class ImageChecker(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):   # TODO add s quit button, and gracefully exit
-        self.root.bind('<Return>', self.show_next_image)
-        self.grid(columnspan=2)
+#        self.root.bind('<Return>', self.show_next_image)
         
-        font = 'Calibri 14'
- 
-        self.labtext = tk.StringVar()
-        self.label = tk.Label(self.root, textvariable=self.labtext, \
-                              font=font, anchor=tk.N)
- 
+#        font = 'Calibri 14'
+# 
+#        self.labtext = tk.StringVar()
+#        self.label = tk.Label(self.root, textvariable=self.labtext, \
+#                              font=font, anchor=tk.N)
+# 
 #        self.current_comment = ''
 #        self.entry = tk.Entry(self, width=80, font=font)
 #        self.entry.insert(0, self.current_comment)
@@ -169,10 +168,8 @@ class ImageChecker(tk.Frame):
         self.ax = self.fig.add_subplot(111)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)  # A tk.DrawingArea.
-        self.canvas.get_tk_widget().grid(row=1,columnspan=3)
 
-        self.canvas.draw()
-        self.show_next_image(None)
+#        self.canvas.draw()
        
         self.enough = tk.Button(self, text="Enough, already!")
         self.enough.bind('<Button-1>', self.byebye)
@@ -180,11 +177,14 @@ class ImageChecker(tk.Frame):
         self.next = tk.Button(self, text="Show Next Image")
         self.next.bind('<Button-1>', self.show_next_image)
     
-        self.label.grid(row=0,columnspan=2)
-#        self.canvas.grid(row=1,column=0, columnspan=2)
-        self.enough.grid(row=3,column=0)
-        self.next.grid(row=3,column=2)
+        self.grid()
+        self.canvas.get_tk_widget().grid(row=1,columnspan=3, rowspan=18)
+#        self.label.grid(row=0,columnspan=2)
+        self.enough.grid(row=20,column=0)
+        self.next.grid(row=20,column=2)
         
+        print(type(self))
+        self.show_next_image(None)
 
 
 #-----------------------------
@@ -200,10 +200,8 @@ class ImageChecker(tk.Frame):
     
                 try:
                     img = Image.open(self.images_dir + image_file)
-                    print('About to show' , image_file)
+                    self.ax.clear()
                     self.ax.imshow(img)
-                    self.canvas.draw()
-                    print('imshow has been called!')
 #                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
 #                    width, height = self.img_display_size
 #                    self.canvas.create_image(width, height, \
@@ -212,9 +210,14 @@ class ImageChecker(tk.Frame):
                     anno = self.dataset.pull_anno(i_img)
                     # Seems crazy, but I had to subtract 1 from the label_map value...
                     for a in anno:
-                        print(self.classes[self.label_map[a['category_id']]-1])
-                    print('|')
+#                        print(self.classes[self.label_map[a['category_id']]-1])
+                        x0, w, y0, h = a['bbox']
+                        self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
+                                     [y0, y0,   y0+h, y0+h, y0])
+#                    print('|')
+                    self.canvas.draw()
                     break
+
                 except FileNotFoundError:
                     print('oops',image_file,'does not seem to exist...')
                  
