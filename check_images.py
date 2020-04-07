@@ -23,6 +23,11 @@ to training.
 
 @author: Bill and Karrington
 """
+#
+#  The following import gets contents of your config.py file into D. 
+import data as D
+  
+from utils.augmentations import SSDAugmentation #, FastBaseTransform, BaseTransform
 
 import json
 import tkinter as tk
@@ -42,16 +47,6 @@ map_annotation =  'LABEL MAP:'
 num = []
 inst_dict = {}
 
-
-def date_for_filename():
-    tgt = time.localtime()
-    year = str(tgt.tm_year)
-    mon = "{:02}".format(tgt.tm_mon)
-    day = "{:02}".format(tgt.tm_mday)
-    hour = "{:02}".format(tgt.tm_hour)
-    minute = "{:02}".format(tgt.tm_min)
-    datestr = '~' + year + '-' + mon + '-' + day + '_' + hour + minute
-    return datestr
 
 def missing_images(js): #this function has to be in the images directory and return the name of missing image files
     file_names = []
@@ -108,6 +103,19 @@ class ImageChecker(tk.Frame):
             filedialog.askopenfilename(parent=top, \
                                         title='Choose JSON file')
 
+        dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
+                            info_file=infile,
+                            transform=SSDAugmentation(D.MEANS))
+ 
+        self.dataset = dataset
+
+        try:
+            self.label_map = D.KAR_LABEL_MAP
+            self.classes = D.KAR_CLASSES
+        except AttributeError:
+            self.label_map = D.COCO_LABEL_MAP
+            self.classes = D.COCO_CLASSES
+
         with open(infile,'r') as fp:
             print(Path(infile).stem)
             print('Loading annotations, please be patient...')
@@ -115,32 +123,6 @@ class ImageChecker(tk.Frame):
             print('Done loading!')
 
         self.images_dir = '/'.join(infile.split('/')[0:-2]) + '/images/'
-
-#        jv = {'images': [], 'categories': js_all['categories'], 'annotations': []}
-#            
-#        # First get rid of any images for which there are no annotations. So, 
-#        #   make a list of all the image ids in annotations...
-#        img_ids = list(set([jsa['image_id'] for jsa in js_all['annotations']]))
-#        #
-#        # ...and then bring over (to jsi) all the images that have ids that are actually in 
-#        #   in js_all['annotations'] image_ids. After this, jsi will be a list of 
-#        #   dictionaries, and each such dictionary contains the dimensions, file
-#        #   name and id number of one image. 
-#        jsi = []
-#        for ii in img_ids:
-#            images_with_ii = [im for im in js_all['images'] if im['id'] == ii]
-#            for iwii in images_with_ii:
-#                jsi.append(iwii)
-#
-#        # Now get all the annotations that correspond to elements of jsi. A single 
-#        #   might have more than one annotated object in it.         
-#        for i, im in enumerate(jsi):
-#            ann_i = [ann for ann in js_all['annotations'] if ann['image_id']==im['id']]
-#
-#            jv['images'].append(im)
-#            for a in ann_i:
-#                jv['annotations'].append(a)
-#
 
         self.json = js_all
         self.image_ids = js_all['images']
@@ -151,20 +133,6 @@ class ImageChecker(tk.Frame):
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
         self.img_display_size = (800,600)
 
-#-----------------------------
-       
-#        #  I COULD USE THIS TO ALLOW TODO COMMENTS TO BE ENTERED FOR EACH IMAGE
-#        #  Let user enter anything that applies to all images in folder.
-#        top = tk.Toplevel(self.root)
-#        top.withdraw()
-#        universal_comment = \
-#            simpledialog.askstring('Universal Comment',\
-#                                   'Enter any text that applies to all images in this folder',\
-#                                       parent=top)
-#        self.universal_comment = None
-#        if len(universal_comment) > 0:
-#            self.universal_comment = universal_comment
-#    
 
         pad=3 # Why? 
         geom=("{0}x{1}+0+0".format(
@@ -216,7 +184,7 @@ class ImageChecker(tk.Frame):
                 i_img = next(self.random_image_iter)
                 image_file = self.json['images'][i_img]['file_name']
                 image_file = image_file.split('_')[-1]
-                print('image file is',image_file)
+#                print('image file is',image_file)
     
                 try:
                     img = Image.open(self.images_dir + image_file)
@@ -224,6 +192,12 @@ class ImageChecker(tk.Frame):
                     width, height = self.img_display_size
                     self.canvas.create_image(width, height, \
                                           image=self.img) 
+                    
+                    anno = self.dataset.pull_anno(i_img)
+                    # Seems crazy, but I had to subtract 1 from the label_map value...
+                    for a in anno:
+                        print(self.classes[self.label_map[a['category_id']]-1])
+                    
                     break
                 except FileNotFoundError:
                     print('oops',image_file,'does not seem to exist...')
