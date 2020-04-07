@@ -43,12 +43,6 @@ num = []
 inst_dict = {}
 
 
-def uichoosefile(title = None, initialdir = None):
-    root = tk.Tk()
-    root.withdraw() # we don't want a full GUI, so keep the root window from appearing
-    filename = tk.filedialog.askopenfilename(title=title, initialdir = initialdir)
-    return filename
-
 def date_for_filename():
     tgt = time.localtime()
     year = str(tgt.tm_year)
@@ -110,7 +104,10 @@ class ImageChecker(tk.Frame):
         top = tk.Toplevel(self.root)
         top.withdraw()  # ...in secret....
 
-        infile = uichoosefile(title='Choose JSON file for images to check...')
+        infile = \
+            filedialog.askopenfilename(parent=top, \
+                                        title='Choose JSON file')
+
         with open(infile,'r') as fp:
             print(Path(infile).stem)
             print('Loading annotations, please be patient...')
@@ -205,9 +202,8 @@ class ImageChecker(tk.Frame):
     
         self.label.grid(row=0,columnspan=2)
         self.canvas.grid(row=1,column=0, columnspan=2)
-#        self.entry.grid(row=2,columnspan=2)
         self.enough.grid(row=3,column=0)
-        self.next.grid(row=3,column=1)
+        self.next.grid(row=3,column=2)
         
 
 
