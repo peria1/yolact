@@ -43,6 +43,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib
+import torch
 
 class_list = []
 label_map = {}
@@ -110,12 +111,25 @@ class ImageChecker(tk.Frame):
         infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
         'data/coco/annotations/milliCOCO.json'
         
-        dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
+        self.dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
+        
+#        batch_size = 1
+#        num_workers = 0
+    
+#        data_loader = torch.utils.data.DataLoader(dataset, batch_size,
+#                                      num_workers=num_workers,
+#                                      shuffle=True, 
+#                                      collate_fn=D.detection_collate,
+#                                      pin_memory=True)
+#        
+#        
+#        self.loader = iter(data_loader)
+ 
  
         matplotlib.use('Qt5Agg')
-        self.dataset = dataset
+#        self.dataset = dataset
 
         try:
             self.label_map = D.KAR_LABEL_MAP
@@ -137,7 +151,7 @@ class ImageChecker(tk.Frame):
 #        self.annotations = js_all['annotations']
 #        n_ann = len(js_all['annotations'])
 #        n_img = len(js_all['images'])
-        n_img = len(dataset.ids)
+        n_img = len(self.dataset.ids)
         
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
 #        self.img_display_size = (800,600)
@@ -197,12 +211,19 @@ class ImageChecker(tk.Frame):
         while True:
             try:   
                 i_img = next(self.random_image_iter)
-                image_file = self.json['images'][i_img]['file_name']
-                image_file = image_file.split('_')[-1]
+#                image_file = self.json['images'][i_img]['file_name']
+#                image_file = image_file.split('_')[-1]
 #                print('image file is',image_file)
     
                 try:
-                    img = Image.open(self.images_dir + image_file)
+#                    img = Image.open(self.images_dir + image_file)
+#                    datum = next(self.loader())
+#                    img, (targets, masks, num_crowds) = datum
+                    (image, target, masks, height, width, crowd) = \
+                    self.dataset.pull_item(i_img)
+                    img = image.cpu().detach().numpy().transpose((1,2,0))
+                    img = (img - np.min(img))/(np.max(img) - np.min(img))
+                    
                     self.ax.clear()
                     self.ax.imshow(img)
 #                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
@@ -226,7 +247,8 @@ class ImageChecker(tk.Frame):
                     break
 
                 except FileNotFoundError:
-                    print('oops',image_file,'does not seem to exist...')
+                    pass
+#                    print('oops',image_file,'does not seem to exist...')
                  
             except StopIteration:
                 print('No more files! You have seen them all...')
