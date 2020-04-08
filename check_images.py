@@ -104,32 +104,18 @@ class ImageChecker(tk.Frame):
         top = tk.Toplevel(self.root)
         top.withdraw()  # ...in secret....
 
-#        infile = \
-#            filedialog.askopenfilename(parent=top, \
-#                                        title='Choose JSON file')
+        infile = \
+            filedialog.askopenfilename(parent=top, \
+                                        title='Choose JSON file')
 
-        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
-        'data/coco/annotations/milliCOCO.json'
+#        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
+#        'data/coco/annotations/milliCOCO.json'
         
         self.dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
-        
-#        batch_size = 1
-#        num_workers = 0
-    
-#        data_loader = torch.utils.data.DataLoader(dataset, batch_size,
-#                                      num_workers=num_workers,
-#                                      shuffle=True, 
-#                                      collate_fn=D.detection_collate,
-#                                      pin_memory=True)
-#        
-#        
-#        self.loader = iter(data_loader)
- 
- 
+
         matplotlib.use('Qt5Agg')
-#        self.dataset = dataset
 
         try:
             self.label_map = D.KAR_LABEL_MAP
@@ -147,10 +133,6 @@ class ImageChecker(tk.Frame):
         self.images_dir = '/'.join(infile.split('/')[0:-2]) + '/images/'
 
         self.json = js_all
-#        self.image_ids = js_all['images']
-#        self.annotations = js_all['annotations']
-#        n_ann = len(js_all['annotations'])
-#        n_img = len(js_all['images'])
         n_img = len(self.dataset.ids)
         
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
@@ -211,30 +193,28 @@ class ImageChecker(tk.Frame):
         while True:
             try:   
                 i_img = next(self.random_image_iter)
-#                image_file = self.json['images'][i_img]['file_name']
-#                image_file = image_file.split('_')[-1]
-#                print('image file is',image_file)
     
                 try:
-#                    img = Image.open(self.images_dir + image_file)
-#                    datum = next(self.loader())
-#                    img, (targets, masks, num_crowds) = datum
                     (image, target, masks, height, width, crowd) = \
                     self.dataset.pull_item(i_img)
+                    
                     img = image.cpu().detach().numpy().transpose((1,2,0))
                     img = (img - np.min(img))/(np.max(img) - np.min(img))
                     
                     self.ax.clear()
                     self.ax.imshow(img)
-#                    self.img = ImageTk.PhotoImage(img.resize((self.img_display_size)))
-#                    width, height = self.img_display_size
-#                    self.canvas.create_image(width, height, \
-#                                          image=self.img) 
-#                    
+
                     anno = self.dataset.pull_anno(i_img)
-                    # Seems crazy, but I had to subtract 1 from the label_map value...
-                    for a in anno:
-                        x0, y0, w, h = a['bbox']
+                    for i,a in enumerate(anno):
+                        mask = masks[i]
+                        igtz = np.where(mask > 0)
+                        x0, y0, x1, y1 = \
+                        np.min(igtz[1]), np.min(igtz[0]), \
+                        np.max(igtz[1]), np.max(igtz[0])
+                        w = x1 - x0
+                        h = y1 - y0
+                        
+                        # Seems crazy, but I had to subtract 1 from the label_map value...
                         labeltext = self.classes[self.label_map[a['category_id']]-1]
                         
                         self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
@@ -248,7 +228,7 @@ class ImageChecker(tk.Frame):
 
                 except FileNotFoundError:
                     pass
-#                    print('oops',image_file,'does not seem to exist...')
+                    print('oops file does not seem to exist...')
                  
             except StopIteration:
                 print('No more files! You have seen them all...')
