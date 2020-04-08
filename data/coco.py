@@ -165,7 +165,7 @@ class COCODetection(data.Dataset):
 
         if self.transform is not None:
 
-            import time
+#            import time
 #            print('In coco.py, just called self.transform...')
 #            with open('coco_was_called.txt','a+') as fp:
 #                fp.write(time.ctime())
