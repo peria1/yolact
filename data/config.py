@@ -54,36 +54,14 @@ COCO_LABEL_MAP = { 1:  1,  2:  2,  3:  3,  4:  4,  5:  5,  6:  6,  7:  7,  8:  8
                   74: 65, 75: 66, 76: 67, 77: 68, 78: 69, 79: 70, 80: 71, 81: 72,
                   82: 73, 84: 74, 85: 75, 86: 76, 87: 77, 88: 78, 89: 79, 90: 80}
 
-KAR_LABEL_MAP = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10,
-                   10: 11, 11: 12, 12: 13, 13: 14, 14: 15, 15: 16, 16: 17, 
-                   17: 18, 18: 19, 20: 20, 21: 21, 23: 22, 24: 23} 
-
-KAR_CLASSES = ('pipet', 'pipet', 'vortexer', 'pipet', 'pipet', 'vortexer', 'Flask', 
-               'genedrive', 'brinkmann', 'eppendorf', 'eppendorf', 'eppendorf', 
-               'Pipette Tip Box', 'serological', 'serological_pipet', 'pipet_aid', 
-               'pipet', 'serological', 'Vortexer', 'Vortexer VWR', 
-               'Vortex Genie 2', 'Vortexer')
 
 
-GAB_CLASS = ( 'dynamite', 'hand', 'leyden lamp', 'nebulizer', 'pipette', 'screwdriver')
-
-ROGER_CLASS = ('flask', 'flask with liquid', 'micropipette', 'Pipette Tip Box')
-
-CHECK_LABEL_MAP = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10,
-                   10: 11, 11: 12, 12: 13, 13: 14, 14: 15, 15: 16, 16: 17, 
-                   17: 18, 18: 19, 20: 20, 21: 21, 23: 22, 24: 23}
-
-CHECK_CLASS = ('brinkmann', 'pipet', 'pipet', 'vortexer', 'pipet', 'pipet', 
-               'vortexer', 'eppendorf', 'eppendorf', 'eppendorf', 'genedrive', 
-               'serological', 'pipet', 'serological', 'brinkmann', 'vortexer', 
-               'pipet', 'pipet', 'vortexer', 'serological_pipet', 'pipet_aid')
-# KAR_CLASSES = KAR_CLASS + GAB_CLASS + ROGER_CLASS
 # ----------------------- CONFIG CLASS ----------------------- #
 
 class Config(object):
     """
     Holds the configuration for anything you want it to.
-    To get the currently active config, call get_cfg().,
+    To get the currently active config, call get_cfg().
 
     To use, just do cfg.x instead of cfg['x'].
     I made this because doing cfg['x'] all the time is dumb.
@@ -131,9 +109,7 @@ dataset_base = Config({
     'name': 'Base Dataset',
 
     # Training images and annotations
-#    'train_images': './data/coco/images/',
-    'train_images': '../../git-repo-2.0/yolact/data/coco/images/',
-
+    'train_images': './data/coco/images/',
     'train_info':   'path_to_annotation_file',
 
     # Validation images and annotations.
@@ -152,17 +128,6 @@ dataset_base = Config({
     'label_map': None
 })
 
-#my_custom_dataset = dataset_base.copy({
-#    'name': 'KAR 2020 DATASET',
-#    
-#    'train_info': './data/coco/annotations/TDS4_5.0.json',
-#    'valid_info': './data/coco/annotations/TDS4_5.0.json',
-#
-#    'class_names' : KAR_CLASSES,
-#    'label_map': KAR_LABEL_MAP
-#    
-#})    
-#
 coco2014_dataset = dataset_base.copy({
     'name': 'COCO 2014',
     
@@ -691,10 +656,9 @@ coco_base_config = Config({
 yolact_base_config = coco_base_config.copy({
     'name': 'yolact_base',
 
-    # Dataset stuff  ACK! I overrode this at some point, which 
-    #    caused some confusing problems. Commenting out for now. 
-#    'dataset': my_custom_dataset,
-#    'num_classes': len(CHECK_CLASS) + 1,
+    # Dataset stuff
+    'dataset': coco2017_dataset,
+    'num_classes': len(coco2017_dataset.class_names) + 1,
 
     # Image Size
     'max_size': 550,
