@@ -29,7 +29,6 @@ import data as D
   
 from utils.augmentations import SSDAugmentation #, FastBaseTransform, BaseTransform
 
-import json
 import tkinter as tk
 import os
 import time
@@ -37,13 +36,13 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, simpledialog
 import numpy as np
-from PIL import ImageTk,Image
 import platform as platf
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib
 import torch
+import traceback
 
 class_list = []
 label_map = {}
@@ -99,21 +98,27 @@ def change_name(old_name, new_name, js): # this function changes the desired nam
 
 class ImageChecker(tk.Frame):
     def __init__(self):
+        from pycocotools.coco import COCO
+
         # Hocus pocus...bring Tk to life...
         self.root = tk.Tk() 
         top = tk.Toplevel(self.root)
         top.withdraw()  # ...in secret....
 
-        infile = \
-            filedialog.askopenfilename(parent=top, \
-                                        title='Choose JSON file')
+#        infile = \
+#            filedialog.askopenfilename(parent=top, \
+#                                        title='Choose JSON file')
 
-#        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
-#        'data/coco/annotations/milliCOCO.json'
+        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
+        'data/coco/annotations/milliCOCO.json'
         
         self.dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
+
+        self.coco = COCO(infile)
+
+#        print('Type of COC(infile) is',type(self.coco))
 
         matplotlib.use('Qt5Agg')
 
@@ -124,20 +129,13 @@ class ImageChecker(tk.Frame):
             self.label_map = D.COCO_LABEL_MAP
             self.classes = D.COCO_CLASSES
 
-        with open(infile,'r') as fp:
-            print(Path(infile).stem)
-            print('Loading annotations, please be patient...')
-            js_all = json.load(fp)
-            print('Done loading!')
 
         self.images_dir = '/'.join(infile.split('/')[0:-2]) + '/images/'
 
-        self.json = js_all
         n_img = len(self.dataset.ids)
         
+        self.ids = list(self.coco.imgToAnns.keys())
         self.random_image_iter = iter(np.argsort(np.random.uniform(size=(n_img))))
-#        self.img_display_size = (800,600)
-
 
         pad=3 # Why? 
         geom=("{0}x{1}+0+0".format(
@@ -150,26 +148,12 @@ class ImageChecker(tk.Frame):
         
         self.create_widgets()
 
-    def create_widgets(self):   # TODO add s quit button, and gracefully exit
-#        self.root.bind('<Return>', self.show_next_image)
-        
-#        font = 'Calibri 14'
-# 
-#        self.labtext = tk.StringVar()
-#        self.label = tk.Label(self.root, textvariable=self.labtext, \
-#                              font=font, anchor=tk.N)
-# 
-#        self.current_comment = ''
-#        self.entry = tk.Entry(self, width=80, font=font)
-#        self.entry.insert(0, self.current_comment)
-        
-#        self.canvas = tk.Canvas(self,  width=1024, height=768)
+    def create_widgets(self):   
         self.fig = Figure(figsize=(8,8), dpi=100)
         self.ax = self.fig.add_subplot(111)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)  # A tk.DrawingArea.
 
-       
         self.enough = tk.Button(self, text="Enough, already!")
         self.enough.bind('<Button-1>', self.byebye)
  
@@ -178,11 +162,9 @@ class ImageChecker(tk.Frame):
     
         self.grid()
         self.canvas.get_tk_widget().grid(row=1,columnspan=3, rowspan=18)
-#        self.label.grid(row=0,columnspan=2)
         self.enough.grid(row=20,column=0)
         self.next.grid(row=20,column=2)
         
-        print(type(self))
         self.show_next_image(None)
 
 
@@ -190,10 +172,12 @@ class ImageChecker(tk.Frame):
 
 
     def show_next_image(self, event):
+
         while True:
             try:   
                 i_img = next(self.random_image_iter)
-    
+                file_name = self.coco.loadImgs(self.ids[i_img])[0]['file_name']
+
                 try:
                     (image, target, masks, height, width, crowd) = \
                     self.dataset.pull_item(i_img)
@@ -208,20 +192,26 @@ class ImageChecker(tk.Frame):
                     for i,a in enumerate(anno):
                         mask = masks[i]
                         igtz = np.where(mask > 0)
-                        x0, y0, x1, y1 = \
-                        np.min(igtz[1]), np.min(igtz[0]), \
-                        np.max(igtz[1]), np.max(igtz[0])
-                        w = x1 - x0
-                        h = y1 - y0
-                        
-                        # Seems crazy, but I had to subtract 1 from the label_map value...
-                        labeltext = self.classes[self.label_map[a['category_id']]-1]
-                        
-                        self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
-                                     [y0, y0,   y0+h, y0+h, y0])
-                        self.ax.text(x0+w/2, y0+h/2, labeltext, \
-                         horizontalalignment='center', verticalalignment='center',\
-                         color='black', bbox=dict(facecolor='yellow', alpha=0.5))
+                        try:
+                            x0, y0, x1, y1 = \
+                            np.min(igtz[1]), np.min(igtz[0]), \
+                            np.max(igtz[1]), np.max(igtz[0])
+                            w = x1 - x0
+                            h = y1 - y0
+                            
+                            # Seems crazy, but I had to subtract 1 from the label_map value...
+                            labeltext = self.classes[self.label_map[a['category_id']]-1]
+                            
+                            self.ax.plot([x0, x0+w, x0+w, x0,   x0],\
+                                         [y0, y0,   y0+h, y0+h, y0])
+                            self.ax.set_title(file_name)
+                            self.ax.text(x0+w/2, y0+h/2, labeltext, \
+                             horizontalalignment='center', verticalalignment='center',\
+                             color='black', bbox=dict(facecolor='yellow', alpha=0.5))
+                        except Exception as exc:
+                            print(traceback.format_exc())
+                            print(exc)
+                            
                         
                     self.canvas.draw()
                     break
