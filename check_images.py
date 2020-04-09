@@ -105,13 +105,13 @@ class ImageChecker(tk.Frame):
         top = tk.Toplevel(self.root)
         top.withdraw()  # ...in secret....
 
-#        infile = \
-#            filedialog.askopenfilename(parent=top, \
-#                                        title='Choose JSON file')
+        infile = \
+            filedialog.askopenfilename(parent=top, \
+                                        title='Choose JSON file')
 
-        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
-        'data/coco/annotations/milliCOCO.json'
-        
+#        infile = 'C:/Users/peria/Desktop/work/Brent Lab/git-repo/yolact/' + \
+#        'data/coco/annotations/milliCOCO.json'
+#        
         self.dataset = D.COCODetection(image_path=D.cfg.dataset.train_images,
                             info_file=infile,
                             transform=SSDAugmentation(D.MEANS))
@@ -139,8 +139,8 @@ class ImageChecker(tk.Frame):
 
         pad=3 # Why? 
         geom=("{0}x{1}+0+0".format(
-            self.root.winfo_screenwidth()-pad, \
-                self.root.winfo_screenheight()-pad))
+            (self.root.winfo_screenwidth()-pad)//2, \
+                (self.root.winfo_screenheight()-pad)*7//8))
         self.root.geometry(geom)
         
         tk.Frame.__init__(self, self.root)
