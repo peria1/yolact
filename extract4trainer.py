@@ -13,7 +13,7 @@ from collections import defaultdict
 #
 import data as D  
 
-from utils.augmentations import SSDAugmentation #, FastBaseTransform, BaseTransform
+from utils.augmentations import SSDAugmentation, FastBaseTransform #, BaseTransform
 import torch
 from yolact import Yolact
 #from eval import prep_display # oops no, clone and modify here as local_prep_display
@@ -26,9 +26,28 @@ import numpy as np
 import copy
 from utils import timer
 import cv2
-from torch.autograd import Variable
+#from torch.autograd import Variable
 
 color_cache = defaultdict(lambda: {})
+
+def local_evalimage(net:Yolact, path:str, save_path:str=None):
+    frame = torch.from_numpy(cv2.imread(path)).cuda().float()
+    print('frame size is', frame.size())
+    batch = FastBaseTransform()(frame.unsqueeze(0))
+    print('Batch size is',batch.size())
+    preds = net(batch)
+
+    img_numpy = local_prep_display(preds, frame, None, None, undo_transform=False)
+    
+    if save_path is None:
+        img_numpy = img_numpy[:, :, (2, 1, 0)]
+
+    if save_path is None:
+        plt.imshow(img_numpy)
+        plt.title(path)
+        plt.show()
+    else:
+        cv2.imwrite(save_path, img_numpy)
 
 
 def local_prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, mask_alpha=0.45, fps_str=''):
@@ -237,6 +256,8 @@ if __name__ == '__main__':
                             info_file='./data/coco/annotations/milliCOCO.json',
                             transform=SSDAugmentation(D.MEANS))
     
+    img_ids = list(dataset.coco.imgToAnns.keys())
+    
 #                                info_file=D.cfg.dataset.train_info,
 
     print('After data set def, backend is',matplotlib.get_backend())
@@ -294,16 +315,19 @@ if __name__ == '__main__':
 
 #    just_one = net(images[0].unsqueeze(0).cuda())
     
-    img, gt, gt_masks, h, w, num_crowd = dataset.pull_item(0)
-                
+    i_img = 43
+#    file_name = self.coco.loadImgs(self.ids[i_img])[0]['file_name']
+
+    file_name = dataset.coco.loadImgs(img_ids[i_img])[0]['file_name']
+    if file_name.startswith('COCO'):
+        file_name = file_name.split('_')[-1]
+
+    img, gt, gt_masks, h, w, num_crowd = dataset.pull_item(i_img)
     batch = img.unsqueeze(0).cuda()
     preds = net(batch)
-
-#    hackpreds = []
-#    hackpreds.append(preds)
-
     img_numpy = local_prep_display(preds, img, h, w)
-
+    plt.imshow(img_numpy)
+    
 #    preds = []
 #    for im in images:
 #        preds.append(net(im.unsqueeze(0).cuda()))
