@@ -247,6 +247,15 @@ def maskshow(img,pick=None):
 #   traceback, and if that doesn't make you giggle, go take a break. 
 #
 if __name__ == '__main__':
+    mode = 'eval'
+    if mode == 'train':
+        print('Testing net_cdp and custom loss...')
+        
+    if mode == 'eval':
+        print('Testing net and preds...')
+    
+    
+    
     backend_I_want = 'Qt5Agg'
     #
     # Define a dataset and a DataLoader, and get one datum. 
@@ -313,40 +322,37 @@ if __name__ == '__main__':
     net.detect.use_fast_nms = True
     net.detect.use_cross_class_nms = False
 
-#    just_one = net(images[0].unsqueeze(0).cuda())
+    if mode == 'eval':
+        for i_img, img_id in enumerate(img_ids):
+            file_name = dataset.coco.loadImgs(img_id)[0]['file_name']
+            if file_name.startswith('COCO'):
+                file_name = file_name.split('_')[-1]
+        
+            img, gt, gt_masks, h, w, num_crowd = dataset.pull_item(i_img)
+            batch = img.unsqueeze(0).cuda()
+            preds = net(batch)
+            img_numpy = local_prep_display(preds, img, h, w)
+            plt.imshow(img_numpy)
+            plt.pause(0.1)
     
-    i_img = 43
-#    file_name = self.coco.loadImgs(self.ids[i_img])[0]['file_name']
 
-    file_name = dataset.coco.loadImgs(img_ids[i_img])[0]['file_name']
-    if file_name.startswith('COCO'):
-        file_name = file_name.split('_')[-1]
-
-    img, gt, gt_masks, h, w, num_crowd = dataset.pull_item(i_img)
-    batch = img.unsqueeze(0).cuda()
-    preds = net(batch)
-    img_numpy = local_prep_display(preds, img, h, w)
-    plt.imshow(img_numpy)
+    if mode == 'train':    
+        criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
+                                 pos_threshold=D.cfg.positive_iou_threshold,
+                                 neg_threshold=D.cfg.negative_iou_threshold,
+                                 negpos_ratio=D.cfg.ohem_negpos_ratio)
+    #
+    #    
+        net.train()
+        net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
+        net_cdp.cuda()
+    #
+        for idx, datum in enumerate(data_loader):
+            losses = net_cdp(datum)
+            losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
+            loss = sum([losses[k] for k in losses])
+            print('Loss',idx,'is',loss.item())
     
-#    preds = []
-#    for im in images:
-#        preds.append(net(im.unsqueeze(0).cuda()))
-
-#    criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
-#                             pos_threshold=D.cfg.positive_iou_threshold,
-#                             neg_threshold=D.cfg.negative_iou_threshold,
-#                             negpos_ratio=D.cfg.ohem_negpos_ratio)
-#
-#    
-#    net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
-#    net_cdp.cuda()
-#
-#    losses = net_cdp(datum)
-#    losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
-#    loss = sum([losses[k] for k in losses])
-#    
-#    print('Whoa! We made it! Loss is',loss)
-
 #
 #  Below here I am trying to call the augmentation by hand, to quickly test
 #    my work using a single datum.     
