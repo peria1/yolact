@@ -18,7 +18,7 @@ import torch
 from yolact import Yolact
 #from eval import prep_display # oops no, clone and modify here as local_prep_display
 from layers.output_utils import postprocess, undo_image_transformation
-
+import torch.nn as nn
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -26,9 +26,30 @@ import numpy as np
 import copy
 from utils import timer
 import cv2
+import random
+
 #from torch.autograd import Variable
 
 color_cache = defaultdict(lambda: {})
+
+
+class NetWithLossPreds(nn.Module):
+    """
+    A wrapper for running the network and computing the loss
+    This is so we can more efficiently use DataParallel.
+    """
+    
+    def __init__(self, net:Yolact, criterion:MultiBoxLoss):
+        super().__init__()
+
+        self.net = net
+        self.criterion = criterion
+    
+    def forward(self, images, targets, masks, num_crowds):
+        preds = self.net(images)
+        losses = self.criterion(self.net, preds, targets, masks, num_crowds)
+        return losses, preds
+
 
 def local_evalimage(net:Yolact, path:str, save_path:str=None):
     frame = torch.from_numpy(cv2.imread(path)).cuda().float()
@@ -58,7 +79,7 @@ def local_prep_display(dets_out, img, h, w, undo_transform=True, class_color=Fal
     
     
     """
-    print('local_prep_display, type(dets_out) is',type(dets_out))
+#    print('local_prep_display, type(dets_out) is',type(dets_out))
     
     top_k = 5
     score_threshold = 0.0
@@ -198,6 +219,56 @@ def local_prep_display(dets_out, img, h, w, undo_transform=True, class_color=Fal
     
     return img_numpy
 
+def gradinator(x):
+    x.requires_grad = False
+    return x
+
+def local_prepare_data(datum, devices:list=None, allocation:list=None):
+    batch_size = 4
+    with torch.no_grad():
+        if devices is None:
+            devices = ['cuda:0'] #if args.cuda else ['cpu']
+        if allocation is None:
+#            allocation = [args.batch_size // len(devices)] * (len(devices) - 1)
+            allocation = [batch_size // len(devices)] * (len(devices) - 1)
+#            allocation.append(args.batch_size - sum(allocation)) # The rest might need more/less
+            allocation.append(batch_size - sum(allocation)) # The rest might need more/less
+        
+        images, (targets, masks, num_crowds) = datum
+
+        cur_idx = 0
+        print(len(images))
+        for device, alloc in zip(devices, allocation):
+            for _ in range(len(images)):
+                print('cur_idx is ',cur_idx)
+                images[cur_idx]  = gradinator(images[cur_idx].to(device))
+                targets[cur_idx] = gradinator(targets[cur_idx].to(device))
+                masks[cur_idx]   = gradinator(masks[cur_idx].to(device))
+                cur_idx += 1
+
+#        if D.cfg.preserve_aspect_ratio:
+#            # Choose a random size from the batch
+#            _, h, w = images[random.randint(0, len(images)-1)].size()
+#
+#            for idx, (image, target, mask, num_crowd) in enumerate(zip(images, targets, masks, num_crowds)):
+#                images[idx], targets[idx], masks[idx], num_crowds[idx] \
+#                    = enforce_size(image, target, mask, num_crowd, w, h)
+        
+        cur_idx = 0
+        split_images, split_targets, split_masks, split_numcrowds \
+            = [[None for alloc in allocation] for _ in range(4)]
+
+        for device_idx, alloc in enumerate(allocation):
+            split_images[device_idx]    = torch.stack(images[cur_idx:cur_idx+alloc], dim=0)
+            split_targets[device_idx]   = targets[cur_idx:cur_idx+alloc]
+            split_masks[device_idx]     = masks[cur_idx:cur_idx+alloc]
+            split_numcrowds[device_idx] = num_crowds[cur_idx:cur_idx+alloc]
+
+            cur_idx += alloc
+
+        return split_images, split_targets, split_masks, split_numcrowds
+
+
 
 def npscl(xin):
     x = copy.copy(xin)
@@ -291,7 +362,7 @@ if __name__ == '__main__':
     
     data_loader_iterator = iter(data_loader)
     
-    datum = next(data_loader_iterator)    
+#    datum = next(data_loader_iterator)    
     
     #  datum itself is a list of 2 lists. The first has length batch_size and 
     #   contains images, the second has length 3 and contains targets, masks, 
@@ -307,7 +378,7 @@ if __name__ == '__main__':
     #  crowds are numpy.int32, in a list of length batch_size.
     #  
     
-    images, (targets, masks, num_crowds) = datum
+#    images, (targets, masks, num_crowds) = datum
     #                 img, masks, boxes, labels = self.transform(img, masks, target[:, :4],
 #                    {'num_crowds': num_crowds, 'labels': target[:, 4]})
 
@@ -317,13 +388,14 @@ if __name__ == '__main__':
     #
     net = Yolact()
     net.init_weights(backbone_path='weights/' + D.cfg.backbone.path)
-    net.eval()
+#    net.eval()
     
     net.detect.use_fast_nms = True
     net.detect.use_cross_class_nms = False
 
     if mode == 'eval':
         for i_img, img_id in enumerate(img_ids):
+            net.eval()
             file_name = dataset.coco.loadImgs(img_id)[0]['file_name']
             if file_name.startswith('COCO'):
                 file_name = file_name.split('_')[-1]
@@ -336,23 +408,62 @@ if __name__ == '__main__':
             plt.pause(0.1)
     
 
-    if mode == 'train':    
-        criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
+#-----------------------
+            criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
                                  pos_threshold=D.cfg.positive_iou_threshold,
                                  neg_threshold=D.cfg.negative_iou_threshold,
                                  negpos_ratio=D.cfg.ohem_negpos_ratio)
-    #
-    #    
-        net.train()
-        net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
-        net_cdp.cuda()
-    #
-        for idx, datum in enumerate(data_loader):
-            losses = net_cdp(datum)
-            losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
+            datum = next(data_loader_iterator)
+            images, targets, masks, num_crowds = local_prepare_data(datum)
+            net.train()
+            predsT = net(images[0])
+            losses = criterion(net, predsT, targets[0], masks[0], num_crowds[0])
             loss = sum([losses[k] for k in losses])
-            print('Loss',idx,'is',loss.item())
-    
+                
+                # no_inf_mean removes some components from the loss, so make sure to backward through all of it
+                # all_loss = sum([v.mean() for v in losses.values()])
+
+                # Backprop
+            loss.backward() # Do this to free up vram even if loss is not finite
+#-----------------------
+
+
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    
+#    if mode == 'train':    
+#       criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
+#                                 pos_threshold=D.cfg.positive_iou_threshold,
+#                                 neg_threshold=D.cfg.negative_iou_threshold,
+#                                 negpos_ratio=D.cfg.ohem_negpos_ratio)
+#     #
+#    #    
+#        net.train()
+#        net_cdp = CustomDataParallel(NetWithLoss(net, criterion))
+#        net_cdp.cuda()
+#    #
+##   Follwing is lifted from train.py...    
+##        preds = self.net(images)
+##        losses = self.criterion(self.net, preds, targets, masks, num_crowds)
+##  How does it get images? I think self.net is just Yolact().train(). But it takes 
+##    images, rather than datum. 
+##
+#    #  images, targets, masks, num_crowds = prepare_data...??
+#        for idx, datum in enumerate(data_loader):
+##            images, targets, masks, num_crowds = local_prepare_data(datum)
+#
+##            preds = net(images)
+##            losses = criterion(net, preds, targets, masks, num_crowds)
+#            losses = net_cdp(datum)
+##            for k,v in preds.items():
+##                preds[k] = v.detach()
+#                
+##            losses = net_cdp(datum)
+##            losses = { k: (v).mean() for k,v in losses.items() } # Mean here because Dataparallel
+#            loss = sum([losses[k] for k in losses])
+#            print('Loss',idx,'is',loss.item())
+#            if idx > 0:
+#                break
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    
 #
 #  Below here I am trying to call the augmentation by hand, to quickly test
 #    my work using a single datum.     
