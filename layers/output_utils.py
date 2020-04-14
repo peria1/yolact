@@ -33,7 +33,7 @@ def postprocess(det_output, w, h, batch_idx=0, interpolation_mode='bilinear',
     """
     
     dets = det_output[batch_idx]
-    print('post_process, dets keys are',dets.keys())
+#    print('post_process, dets keys are',dets.keys())
     net = dets['net']
     dets = dets['detection']
 
@@ -62,12 +62,14 @@ def postprocess(det_output, w, h, batch_idx=0, interpolation_mode='bilinear',
         
         # Test flag, do not upvote
         try:
-            print('postprocess, cfg.mask.proto_debug is',cfg.mask_proto_debug)
+#            print('postprocess, cfg.mask.proto_debug is',cfg.mask_proto_debug)
             if cfg.mask_proto_debug:
                 np.save('scripts/proto.npy', proto_data.cpu().numpy())
         except AttributeError:
-            print('How on Earth does this work from eval.py?')
-            print('How does the cfg object get here with a mask_proto_debug attribute?')
+            pass
+
+#            print('How on Earth does this work from eval.py?')
+#            print('How does the cfg object get here with a mask_proto_debug attribute?')
             
         if visualize_lincomb:
             display_lincomb(proto_data, masks)
