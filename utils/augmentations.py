@@ -7,7 +7,7 @@ from numpy import random
 from math import sqrt
 import traceback
 
-from scipy.interpolate import LSQBivariateSpline, griddata
+from scipy.interpolate import RegularGridInterpolator, griddata
 
 from data import cfg, MEANS, STD
 
@@ -460,10 +460,18 @@ class Shrinker(object):
 #            print('Rejected!')
             return image, masks, boxes, labels
 
+
+
         height, width, depth = image.shape
         ratio = random.uniform(0.33,0.9)
-        
-        xx, yy = np.meshgrid(np.arange(width), np.arange(height))
+
+
+        x = np.arange(width)
+        y = np.arange(height)
+        z = np.arange(depth)
+        interp_func = RegularGridInterpolator((y, x, z), image, 'nearest')
+
+        xx, yy = np.meshgrid(x, y)
 
         r = ratio
         ishrnk = np.zeros(image.shape)
@@ -529,14 +537,19 @@ class Shrinker(object):
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
+            z_ones = np.ones_like(ybord)
             
             pick = (m==0).ravel()
             scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
             for i in range(3):
-                ishrnk[ybord[scram], xbord[scram], i] = \
-                griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
-                                              image[:,:,i].ravel()[pick], \
-                                              (xbord, ybord), method='nearest') 
+#                ishrnk[ybord[scram], xbord[scram], i] = \
+#                griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
+#                                              image[:,:,i].ravel()[pick], \
+#                                              (xbord, ybord), method='linear') 
+                
+#                pts = np.array([[2.1, 6.2, 8.3], [3.3, 5.2, 7.1]])
+                pts = np.array([ybord, xbord, z_ones * i]).T
+                ishrnk[ybord[scram], xbord[scram], i] = interp_func(pts)
 
             b = boxes[imask]
             bv = np.asarray([[b[0], b[2]], [b[1], b[3]],[1, 1]])
