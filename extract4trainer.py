@@ -237,10 +237,10 @@ def local_prepare_data(datum, devices:list=None, allocation:list=None):
         images, (targets, masks, num_crowds) = datum
 
         cur_idx = 0
-        print(len(images))
+#        print(len(images))
         for device, alloc in zip(devices, allocation):
             for _ in range(len(images)):
-                print('cur_idx is ',cur_idx)
+#                print('cur_idx is ',cur_idx)
                 images[cur_idx]  = gradinator(images[cur_idx].to(device))
                 targets[cur_idx] = gradinator(targets[cur_idx].to(device))
                 masks[cur_idx]   = gradinator(masks[cur_idx].to(device))
@@ -413,7 +413,11 @@ if __name__ == '__main__':
                                  pos_threshold=D.cfg.positive_iou_threshold,
                                  neg_threshold=D.cfg.negative_iou_threshold,
                                  negpos_ratio=D.cfg.ohem_negpos_ratio)
-            datum = next(data_loader_iterator)
+            try:
+                datum = next(data_loader_iterator)
+            except StopIteration:
+                break
+            
             images, targets, masks, num_crowds = local_prepare_data(datum)
             net.train()
             predsT = net(images[0])
