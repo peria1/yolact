@@ -583,6 +583,20 @@ class MultiBoxLoss(nn.Module):
                     mask_scores = mask_scores[select, :]
 
             num_pos = proto_coef.size(0)
+            print('downsample mask last dim is ',downsampled_masks.size()[-1])
+            print('max pos_idx_t is', torch.max(pos_idx_t).item())
+#            if any(pos_idx_t > downsampled_masks.size()[-1]):
+#                print('Oh crap! How does this happen?!')
+            
+            lastdim = downsampled_masks.size()[-1]
+            if torch.max(pos_idx_t) >= lastdim:
+                for i,pit in enumerate(pos_idx_t):
+                    pos_idx_t[i] = min(lastdim-1,pit)
+                    
+            if torch.max(pos_idx_t) >= lastdim:
+                print('I fucking hate computers...')
+                
+                
             mask_t = downsampled_masks[:, :, pos_idx_t]     
             label_t = labels[idx][pos_idx_t]     
 
