@@ -162,11 +162,11 @@ class CustomDataParallel(nn.DataParallel):
         # that no scatter is necessary, and there's no need to shuffle stuff around different GPUs.
         devices = ['cuda:' + str(x) for x in device_ids]
         splits = prepare_data(inputs[0], devices, allocation=args.batch_alloc)
-        print('Split types:')
-        for split in splits:
-            print(type(split))
-            if type(split) is list:
-                print('first element type is',type(split[0]))
+#        print('Split types:')
+#        for split in splits:
+#            print(type(split))
+#            if type(split) is list:
+#                print('first element type is',type(split[0]))
 
         return [[split[device_idx] for split in splits] for device_idx in range(len(devices))], \
             [kwargs] * len(devices)
@@ -278,7 +278,7 @@ def train():
                 continue
             
             for datum in data_loader:
-                print('Type of datum is',type(datum))
+#                print('Type of datum is',type(datum))
                 
                 # Stop if we've reached an epoch if we're resuming from start_iter
                 if iteration == (epoch+1)*epoch_size:
@@ -419,10 +419,10 @@ def prepare_data(datum, devices:list=None, allocation:list=None):
         images, (targets, masks, num_crowds) = datum
 
         cur_idx = 0
-        print(len(images))
+#        print(len(images))
         for device, alloc in zip(devices, allocation):
             for _ in range(len(images)):
-                print('cur_idx is ',cur_idx)
+#                print('cur_idx is ',cur_idx)
                 images[cur_idx]  = gradinator(images[cur_idx].to(device))
                 targets[cur_idx] = gradinator(targets[cur_idx].to(device))
                 masks[cur_idx]   = gradinator(masks[cur_idx].to(device))
@@ -448,7 +448,7 @@ def prepare_data(datum, devices:list=None, allocation:list=None):
 
             cur_idx += alloc
 
-        print('split_images type is',type(split_images))
+#        print('split_images type is',type(split_images))
         return split_images, split_targets, split_masks, split_numcrowds
 
 def no_inf_mean(x:torch.Tensor):
