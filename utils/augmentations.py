@@ -455,12 +455,12 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-#        print('Entering Shrinker....executing every time...')
+#        print('Entering Shrinker....')
         if random.randint(2) > 0:
 #            print('Rejected!')
             return image, masks, boxes, labels
 
-
+#        print('Shrinking!')
 
         height, width, depth = image.shape
         ratio = random.uniform(0.33,0.9)
