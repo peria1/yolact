@@ -498,7 +498,8 @@ class Shrinker(object):
             v = \
             np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
 
-            xy_p = np.round(np.matmul(F(r),v))[0:2,:]
+#            xy_p = np.round(np.matmul(F(r),v))[0:2,:]
+            xy_p = ((np.matmul(F(r),v))[0:2,:] + 0.5).astype(int)
             # I had to use np.ravel in the following to avoid what I think 
             #   is a bug in np.unique. It was giving me "per column" unique
             #   values, when I had not asked for that. 
@@ -520,7 +521,8 @@ class Shrinker(object):
                                   np.ones(ypu.shape).reshape(1,-1)))
             
             Finv = np.linalg.inv(F(r))
-            xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
+#            xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
+            xy_orig = np.asarray((np.matmul(Finv, xypu)[0:2,:] + 0.5).astype(int))
 #            print(xy_orig.shape)
             
             ffs = (xy_orig.shape)[1]
@@ -539,7 +541,7 @@ class Shrinker(object):
             ybord = ibord % height
             z_ones = np.ones_like(ybord)
             
-            pick = (m==0).ravel()
+#            pick = (m==0).ravel()
             scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
             for i in range(3):
 #                ishrnk[ybord[scram], xbord[scram], i] = \
@@ -567,10 +569,12 @@ class Shrinker(object):
 #            print(np.min(xpu), np.min(ypu), np.max(xpu), np.max(ypu))
         
         mss = masksum.shape
-        allmasksum = \
-        np.asarray(\
-        [1 if mns > 0 else 0 for mns in \
-         iter((masksum + newmasksum).ravel())]).reshape(mss)
+#        allmasksum = \
+#        np.asarray(\
+#        [1 if mns > 0 else 0 for mns in \
+#         iter((masksum + newmasksum).ravel())]).reshape(mss)
+        
+        allmasksum = np.asarray(masksum + newmasksum, dtype=np.float)
             
         image = (ishrnk + \
                  (1-allmasksum.reshape(mss[0], mss[1], 1))*image).astype(np.float32)
@@ -815,12 +819,12 @@ class SSDAugmentation(object):
         self.augment = Compose([
             ConvertFromInts(),
             ToAbsoluteCoords(),
-            Shrinker(),
             enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
             RandomMirror(),
             RandomFlip(),
             RandomRot90(),
             Resize(),
+            Shrinker(),
             enable_if(not cfg.preserve_aspect_ratio, Pad(cfg.max_size, cfg.max_size, mean)),
             ToPercentCoords(),
             PrepareMasks(cfg.mask_size, cfg.use_gt_bboxes),
