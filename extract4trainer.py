@@ -5,7 +5,6 @@ Created on Wed Mar 11 15:07:37 2020
 @author: Bill
 """
 from train import  NetWithLoss, CustomDataParallel, MultiBoxLoss, prepare_data
-from collections import defaultdict
 
 #
 # I import Bolya's yolact/data subdirectory as D. This will pick
@@ -29,7 +28,7 @@ import cv2
 import random
 
 #from torch.autograd import Variable
-
+from collections import defaultdict
 color_cache = defaultdict(lambda: {})
 
 
