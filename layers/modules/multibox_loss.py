@@ -75,6 +75,10 @@ class MultiBoxLoss(nn.Module):
         mask_data = predictions['mask']
         priors    = predictions['priors']
 
+#        print('multibox_loss:')
+#        print('mask_data.size() is', mask_data.size())
+#        print('loc_data.size() is', loc_data.size())
+        
         if cfg.mask_type == mask_type.lincomb:
             proto_data = predictions['proto']
 
@@ -553,6 +557,8 @@ class MultiBoxLoss(nn.Module):
                     pos_gt_box_t = gt_box_t[idx, cur_pos]
 
             if pos_idx_t.size(0) == 0:
+                print('pos_idx_t.size(0) is',pos_idx_t.size(0))
+                print('Why are we checking this?')
                 continue
 
             proto_masks = proto_data[idx]
@@ -571,6 +577,7 @@ class MultiBoxLoss(nn.Module):
             # If we have over the allowed number of masks, select a random sample
             old_num_pos = proto_coef.size(0)
             if old_num_pos > cfg.masks_to_train:
+                print('old_num_pos > cfg.masks_to_train', old_num_pos, cfg.masks_to_train)
                 perm = torch.randperm(proto_coef.size(0))
                 select = perm[:cfg.masks_to_train]
 
@@ -583,18 +590,14 @@ class MultiBoxLoss(nn.Module):
                     mask_scores = mask_scores[select, :]
 
             num_pos = proto_coef.size(0)
-           
+#            print('There are',len(pos_idx_t),'values and mask_data_size() is', mask_data.size())
             lastdim = downsampled_masks.size()[-1]
             if torch.max(pos_idx_t) >= lastdim:
-                print('Fixing pos_idx_t so it does not overflow downsampled_masks.')
-                print('Why is this happening now?')
+                print('downsampled_masks last dim is ', lastdim)
+                print('Fixing pos_idx_t (',pos_idx_t,') so it does not overflow downsampled_masks.')
                 for i,pit in enumerate(pos_idx_t):
                     pos_idx_t[i] = min(lastdim-1,pit)
-                    
-            if torch.max(pos_idx_t) >= lastdim:
-                print('I fucking hate computers...')
-                
-                
+                                                    
             mask_t = downsampled_masks[:, :, pos_idx_t]     
             label_t = labels[idx][pos_idx_t]     
 
