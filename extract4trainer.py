@@ -392,6 +392,10 @@ if __name__ == '__main__':
     
     net.detect.use_fast_nms = True
     net.detect.use_cross_class_nms = False
+    criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
+                         pos_threshold=D.cfg.positive_iou_threshold,
+                         neg_threshold=D.cfg.negative_iou_threshold,
+                         negpos_ratio=D.cfg.ohem_negpos_ratio)
 
     if mode == 'eval':
         for i_img, img_id in enumerate(img_ids):
@@ -409,10 +413,6 @@ if __name__ == '__main__':
     
 
 #-----------------------
-            criterion = MultiBoxLoss(num_classes=D.cfg.num_classes,
-                                 pos_threshold=D.cfg.positive_iou_threshold,
-                                 neg_threshold=D.cfg.negative_iou_threshold,
-                                 negpos_ratio=D.cfg.ohem_negpos_ratio)
             try:
                 datum = next(data_loader_iterator)
             except StopIteration:
@@ -423,7 +423,7 @@ if __name__ == '__main__':
             predsT = net(images[0])
             losses = criterion(net, predsT, targets[0], masks[0], num_crowds[0])
             loss = sum([losses[k] for k in losses])
-                
+            print(loss)
                 # no_inf_mean removes some components from the loss, so make sure to backward through all of it
                 # all_loss = sum([v.mean() for v in losses.values()])
 
