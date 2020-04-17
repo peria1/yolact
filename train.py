@@ -162,12 +162,14 @@ class CustomDataParallel(nn.DataParallel):
         # that no scatter is necessary, and there's no need to shuffle stuff around different GPUs.
         devices = ['cuda:' + str(x) for x in device_ids]
         splits = prepare_data(inputs[0], devices, allocation=args.batch_alloc)
+        print('devices:',devices)
+#        print('args.batch_alloc:',args.batch_alloc)
 #        print('Split types:')
 #        for split in splits:
 #            print(type(split))
 #            if type(split) is list:
 #                print('first element type is',type(split[0]))
-
+        print('kwargs:',kwargs)
         return [[split[device_idx] for split in splits] for device_idx in range(len(devices))], \
             [kwargs] * len(devices)
 
@@ -224,6 +226,12 @@ def train():
 
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum,
                           weight_decay=args.decay)
+    
+    print('num_classes is',cfg.num_classes)
+    print('pos_threshold=',cfg.positive_iou_threshold)
+    print('neg_threshold=',cfg.negative_iou_threshold)
+    print('negpos_ratio=',cfg.ohem_negpos_ratio)
+    
     criterion = MultiBoxLoss(num_classes=cfg.num_classes,
                              pos_threshold=cfg.positive_iou_threshold,
                              neg_threshold=cfg.negative_iou_threshold,
@@ -409,13 +417,16 @@ def gradinator(x):
     return x
 
 def prepare_data(datum, devices:list=None, allocation:list=None):
+    print('Prepare data has been called! Batch size is',args.batch_size)
     with torch.no_grad():
         if devices is None:
             devices = ['cuda:0'] if args.cuda else ['cpu']
         if allocation is None:
             allocation = [args.batch_size // len(devices)] * (len(devices) - 1)
             allocation.append(args.batch_size - sum(allocation)) # The rest might need more/less
+            print('In prepare data, allocation is',allocation)
         
+        print('...and devices is',devices)
         images, (targets, masks, num_crowds) = datum
 
         cur_idx = 0
