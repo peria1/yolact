@@ -7,7 +7,7 @@ from numpy import random
 from math import sqrt
 import traceback
 
-from scipy.interpolate import RegularGridInterpolator, griddata
+from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
 
 from data import cfg, MEANS, STD
 
@@ -455,36 +455,43 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-#        print('Entering Shrinker....')
         if random.randint(2) > 0:
-#            print('Rejected!')
             return image, masks, boxes, labels
-
-#        print('Shrinking!')
-
-        height, width, depth = image.shape
         ratio = random.uniform(0.33,0.9)
 
+        masksum = np.zeros(masks.shape[1:])
+        for m in masks:
+            masksum += m
 
-        x = np.arange(width)
-        y = np.arange(height)
-        z = np.arange(depth)
-        interp_func = RegularGridInterpolator((y, x, z), image, 'nearest')
 
-        xx, yy = np.meshgrid(x, y)
+        height, width, depth = image.shape
 
+#        x = np.arange(width)
+#        y = np.arange(height)
+#        z = np.arange(depth)
+#        interp_func = RegularGridInterpolator((y, x, z), image, 'nearest')
+
+        xx, yy = np.meshgrid(np.arange(width), np.arange(height))
+        
+        npts = height*width
+        no_obj = (masksum.reshape((npts,1)) == 0).reshape(npts,)
+        
+        X = np.concatenate((xx.reshape((npts,1)),yy.reshape((npts,1))),axis=1)[no_obj,:]
+        interp_flist = []
+        for i in range(depth):
+            interp_flist.append(NearestNDInterpolator(X, image[:,:,i].reshape((npts,1))[no_obj]))
+        
         r = ratio
         ishrnk = np.zeros(image.shape)
-        masksum = np.zeros(masks.shape[1:])
         newmasksum = np.zeros(masks.shape[1:])
+        
         for imask, m in enumerate(masks):
-            masksum += m
             mgtz = m > 0
             imgtz = np.ravel(xx[mgtz]*height + yy[mgtz]).astype(int)
             
             x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
             
-            # F collapes the coordinates of the maskes pixels around 
+            # F collapes the coordinates of the masked pixels around 
             #  (x0, y0), by a factor r. 
             F = lambda r: np.asmatrix([[  r,    0,  x0*(1-r)],\
                                        [  0,    r,  y0*(1-r)],\
@@ -497,8 +504,6 @@ class Shrinker(object):
             #   on masked pixels. 
             v = \
             np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
-
-#            xy_p = np.round(np.matmul(F(r),v))[0:2,:]
             xy_p = ((np.matmul(F(r),v))[0:2,:] + 0.5).astype(int)
             # I had to use np.ravel in the following to avoid what I think 
             #   is a bug in np.unique. It was giving me "per column" unique
@@ -513,17 +518,12 @@ class Shrinker(object):
             xpu = (iu // height)
             ypu = (iu % height)
             
-#            print('xpu,ypu:',np.max(xpu),np.max(ypu))
-#            print(ishrnk.shape)
-
             xypu = np.concatenate((xpu.reshape(1,-1), \
                                   ypu.reshape(1,-1), \
                                   np.ones(ypu.shape).reshape(1,-1)))
             
             Finv = np.linalg.inv(F(r))
-#            xy_orig = np.asarray(np.round(np.matmul(Finv, xypu)[0:2,:]).astype(int))
             xy_orig = np.asarray((np.matmul(Finv, xypu)[0:2,:] + 0.5).astype(int))
-#            print(xy_orig.shape)
             
             ffs = (xy_orig.shape)[1]
             x = xy_orig[0,:].reshape(ffs)
@@ -539,19 +539,15 @@ class Shrinker(object):
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
-            z_ones = np.ones_like(ybord)
+#            z_ones = np.ones_like(ybord)
             
-#            pick = (m==0).ravel()
             scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
-            for i in range(3):
-#                ishrnk[ybord[scram], xbord[scram], i] = \
-#                griddata(np.array([xx.ravel()[pick], yy.ravel()[pick]]).T, \
-#                                              image[:,:,i].ravel()[pick], \
-#                                              (xbord, ybord), method='linear') 
-                
-#                pts = np.array([[2.1, 6.2, 8.3], [3.3, 5.2, 7.1]])
-                pts = np.array([ybord, xbord, z_ones * i]).T
-                ishrnk[ybord[scram], xbord[scram], i] = interp_func(pts)
+            pts = np.array([ybord, xbord]).T
+
+            for i,f in enumerate(interp_flist):
+                infill = (f(pts)).reshape(pts.shape[0])
+                ishrnk[ybord[scram], xbord[scram], i] = infill
+#                ishrnk[ybord, xbord, i] += infill
 
             b = boxes[imask]
             bv = np.asarray([[b[0], b[2]], [b[1], b[3]],[1, 1]])
@@ -564,23 +560,13 @@ class Shrinker(object):
             m[:] = 0
             m[ypu, xpu] = 1
             newmasksum += m
-            
-#            print(boxes[imask])
-#            print(np.min(xpu), np.min(ypu), np.max(xpu), np.max(ypu))
-        
-        mss = masksum.shape
-#        allmasksum = \
-#        np.asarray(\
-#        [1 if mns > 0 else 0 for mns in \
-#         iter((masksum + newmasksum).ravel())]).reshape(mss)
-        
+                    
+        mss = masksum.shape        
         allmasksum = np.asarray(masksum + newmasksum, dtype=np.float)
-            
-        image = (ishrnk + \
-                 (1-allmasksum.reshape(mss[0], mss[1], 1))*image).astype(np.float32)
- 
-#        print('Done with  Shrinker....')
-       
+        ileave_alone = (1-allmasksum.reshape(mss[0], mss[1], 1))*image
+        
+        image = (ishrnk + ileave_alone).astype(np.float32)
+        
         return image, masks, boxes, labels
 
 
