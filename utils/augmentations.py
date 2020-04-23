@@ -7,7 +7,7 @@ from numpy import random
 from math import sqrt
 import traceback
 
-from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
+from scipy.interpolate import NearestNDInterpolator
 
 from data import cfg, MEANS, STD
 
@@ -476,7 +476,7 @@ class Shrinker(object):
         npts = height*width
         no_obj = (masksum.reshape((npts,1)) == 0).reshape(npts,)
         
-        X = np.concatenate((xx.reshape((npts,1)),yy.reshape((npts,1))),axis=1)[no_obj,:]
+        X = np.concatenate((yy.reshape((npts,1)),xx.reshape((npts,1))),axis=1)[no_obj,:]
         interp_flist = []
         for i in range(depth):
             interp_flist.append(NearestNDInterpolator(X, image[:,:,i].reshape((npts,1))[no_obj]))
