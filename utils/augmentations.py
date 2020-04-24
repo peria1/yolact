@@ -455,7 +455,7 @@ class Shrinker(object):
     #    WJP
 
     def __call__(self, image, masks, boxes, labels):
-        if random.randint(2) > 0:
+        if random.randint(2):
             return image, masks, boxes, labels
         ratio = random.uniform(0.33,0.9)
 
@@ -463,14 +463,7 @@ class Shrinker(object):
         for m in masks:
             masksum += m
 
-
         height, width, depth = image.shape
-
-#        x = np.arange(width)
-#        y = np.arange(height)
-#        z = np.arange(depth)
-#        interp_func = RegularGridInterpolator((y, x, z), image, 'nearest')
-
         xx, yy = np.meshgrid(np.arange(width), np.arange(height))
         
         npts = height*width
@@ -492,16 +485,17 @@ class Shrinker(object):
             x0, y0 = np.mean(xx[mgtz]), np.mean(yy[mgtz])
             
             # F collapes the coordinates of the masked pixels around 
-            #  (x0, y0), by a factor r. 
+            #  (x0, y0), by a factor r, since r < 1. 
             F = lambda r: np.asmatrix([[  r,    0,  x0*(1-r)],\
                                        [  0,    r,  y0*(1-r)],\
                                        [  0,    0,      1   ]])
             
-            # xmask and ymask are the coordinates of masked pixels.
+            # xmask and ymask are the coordinates of masked pixels, as rows.
             ymask = yy[mgtz].reshape((1,-1))
             xmask = xx[mgtz].reshape((1,-1))
             # v is a set augmented vectors, compatible with F, based
-            #   on masked pixels. 
+            #   on masked pixels, i.e. concatenate the rows into columns. 
+            # v.shape is (3,len(mgtz))
             v = \
             np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
             xy_p = ((np.matmul(F(r),v))[0:2,:] + 0.5).astype(int)
@@ -514,7 +508,7 @@ class Shrinker(object):
             #   to make the difference here. 
             #
             iu = np.unique(np.ravel(xy_p[0,:]*height + xy_p[1,:])).astype(int)
-                
+            # iu are the indices to the new mask pixels. 
             xpu = (iu // height)
             ypu = (iu % height)
             
@@ -534,20 +528,23 @@ class Shrinker(object):
             xy_orig[1, y < 0] = 0
             
             ishrnk[ypu, xpu,:] = image[xy_orig[1,:].T, xy_orig[0,:].T,:].reshape(-1,3)
-            
+            #
+            # Border pixels are those that are in the old mask (imgtz) but not in the
+            #   new mask (iu). "Border" is not really the right name. They are the pixels
+            #   left vacant when the object shrinks.
+            #
             ibordset = set(imgtz) - set(iu)
             ibord = np.fromiter(ibordset, int, len(ibordset))
             xbord = ibord // height
             ybord = ibord % height
-#            z_ones = np.ones_like(ybord)
             
-            scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
+#            scram = np.argsort(np.random.randint(0,len(ybord), size=ybord.shape))
             pts = np.array([ybord, xbord]).T
 
             for i,f in enumerate(interp_flist):
                 infill = (f(pts)).reshape(pts.shape[0])
-                ishrnk[ybord[scram], xbord[scram], i] = infill
-#                ishrnk[ybord, xbord, i] += infill
+#                ishrnk[ybord[scram], xbord[scram], i] = infill
+                ishrnk[ybord, xbord, i] = infill
 
             b = boxes[imask]
             bv = np.asarray([[b[0], b[2]], [b[1], b[3]],[1, 1]])
@@ -563,6 +560,7 @@ class Shrinker(object):
                     
         mss = masksum.shape        
         allmasksum = np.asarray(masksum + newmasksum, dtype=np.float)
+        allmasksum[allmasksum > 0] = 1.0
         ileave_alone = (1-allmasksum.reshape(mss[0], mss[1], 1))*image
         
         image = (ishrnk + ileave_alone).astype(np.float32)
