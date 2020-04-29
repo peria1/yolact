@@ -494,10 +494,11 @@ class Shrinker(object):
             ymask = yy[mgtz].reshape((1,-1))
             xmask = xx[mgtz].reshape((1,-1))
             # v is a set augmented vectors, compatible with F, based
-            #   on masked pixels, i.e. concatenate the rows into columns. 
+            #   on masked pixels, i.e. concatenate the rows into columns, add 3rd row of 1's. 
             # v.shape is (3,len(mgtz))
             v = \
             np.concatenate((xmask, ymask, np.ones(ymask.shape)), axis=0)
+            # Use F to find locations of shrunken object pixels, round to nearest. 
             xy_p = ((np.matmul(F(r),v))[0:2,:] + 0.5).astype(int)
             # I had to use np.ravel in the following to avoid what I think 
             #   is a bug in np.unique. It was giving me "per column" unique
@@ -818,7 +819,6 @@ class SSDAugmentation(object):
 # original code from the [] above. 
 #            ConvertFromInts(),
 #            ToAbsoluteCoords(),
-#            Shrinker(),
 #            enable_if(cfg.augment_photometric_distort, PhotometricDistort()),
 #            enable_if(cfg.augment_expand, Expand(mean)),
 #            enable_if(cfg.augment_random_sample_crop, RandomSampleCrop()),
